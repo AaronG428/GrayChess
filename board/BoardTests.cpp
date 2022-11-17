@@ -30,7 +30,7 @@ void moveTests()
     move.moveType = Move::Quiet;
 
     Board* board = new Board();
-    board->updateByMove(move);
+    board->updateByMove<move.moveType>(move);
     for (int i=0; i<14; i++){
         cout << board->displayBB(board->pieceBB[i]) << endl;
     }

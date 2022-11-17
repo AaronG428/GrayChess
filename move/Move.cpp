@@ -29,8 +29,8 @@ public:
     
     MoveEnum moveType;
 
-    uint64_t from;
-    uint64_t to;
+    int from;
+    int to;
 
     PieceEnum piece;
     ColorEnum color;
