@@ -58,65 +58,11 @@ public:
         
     }
 
-    void updateByMove(Move move){
-        //suboptimal branching behavior, TODO fix with indexing using moveEnum as int?
-        uint64_t from = move.from;
-        uint64_t to = move.to;
-        uint64_t fromTo = from | to;
-        int colorIndex = 7*move.color;
-        int pieceIndex =  colorIndex + move.piece + 1;
-        switch(move.moveType){ 
-            case Move::Quiet :
-
-                pieceBB[pieceIndex] ^= fromTo;
-                pieceBB[colorIndex] ^= fromTo;
-                occupiedBB          ^= fromTo;
-                emptyBB             ^= fromTo;
-
-                if (move.piece != Move::Pawn) {
-                    halfMoveClock += 1;
-                }
-                if(move.piece == Move::King) {
-                    
-                    castleRights[2*move.color] = false;
-                    castleRights[2*move.color + 1] = false;
-                }else if (move.piece == Move::Rook) {
-                    uint64_t shortRooks = 0x1ULL << 56 + 0x1ULL;
-                    int shortCastle = (int)(shortRooks & from != 0);
-                    castleRights[2*move.color + 1*shortRooks] = false;
-
-                }
-                
-
-
-                break;
-
-            case Move::Castle :
-                
-
-                castleRights[2*move.color] = false;
-                castleRights[2*move.color + 1] = false;
-                break;
-
-            case Move::Capture :
-
-                break;
-            
-            case Move::Promote :
-
-                break;
-            
-            case Move::PromoteCapture :
-
-                break;
-            
-
-
-            
-
-
-        }
+    template<Move::MoveEnum moveType>
+    void updateByMove (Move move){
+        return;
     }
+
 
 
     void init(){
@@ -213,3 +159,78 @@ public:
 
 };
 
+std::tuple<uint64_t, uint64_t, uint64_t, int, int>  moveCharacteristics(Move move){
+    uint64_t from = 1ULL << move.from;
+    uint64_t to = 1ULL << move.to;
+    uint64_t fromTo = from | to;
+    int colorIndex = 7*move.color;
+    int pieceIndex =  colorIndex + move.piece + 1;
+    return std::tuple(from, to, fromTo, colorIndex, pieceIndex);
+}
+
+template<>
+void Board::updateByMove<Move::Quiet>(Move move){
+    uint64_t from, to, fromTo;
+    int colorIndex, pieceIndex;
+    std::tie(from, to, fromTo, colorIndex, pieceIndex) = moveCharacteristics(move);
+    
+    pieceBB[pieceIndex] ^= fromTo;
+    pieceBB[colorIndex] ^= fromTo;
+    occupiedBB          ^= fromTo;
+    emptyBB             ^= fromTo;
+
+    //fix branches
+    if (move.piece != Move::Pawn) {
+        halfMoveClock += 1;
+    }
+    if(move.piece == Move::King) {
+        
+        castleRights[2*move.color] = false;
+        castleRights[2*move.color + 1] = false;
+    }else if (move.piece == Move::Rook) {
+        uint64_t shortRooks = (0x1ULL << 56) + 0x1ULL;
+        int shortCastle = (int)((shortRooks & from )!= 0);
+        castleRights[2*move.color + 1*shortRooks] = false;
+    }
+
+}
+
+
+
+
+template<>
+void Board::updateByMove<Move::Capture>(Move move){
+    //TODO
+    
+    halfMoveClock = 0;
+}
+
+
+template<>
+void Board::updateByMove<Move::Promote>(Move move){
+    //TODO
+
+    halfMoveClock = 0;
+}
+
+
+template<>
+void Board::updateByMove<Move::PromoteCapture>(Move move){
+    //TODO
+    
+    halfMoveClock = 0;
+}
+
+template<>
+void Board::updateByMove<Move::Castle>(Move move){
+    uint64_t from, to, fromTo;
+    int colorIndex, pieceIndex;
+    std::tie(from, to, fromTo, colorIndex, pieceIndex) = moveCharacteristics(move);
+
+    //TODO
+
+
+    halfMoveClock = 0;
+    castleRights[2*move.color] = false;
+    castleRights[2*move.color + 1] = false;
+}
