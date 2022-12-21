@@ -3,18 +3,42 @@
 #include "Board.cpp"
 using namespace std;
 
+
+    enum class Animal { dog, cat, bird  };
+    class Sound
+    {
+    public:
+        template<Animal animal>
+        static void getSound ();
+    };
+
+    template<>
+    void Sound::getSound<Animal::dog> ()
+    {
+        // dog specific processing
+        cout << "woof" << endl;
+    }
+
+    template<>
+    void Sound::getSound<Animal::cat> ()
+    {
+        // cat specific processing
+        cout << "mrow" << endl;
+    }
+
+    template<>
+    void Sound::getSound<Animal::bird> ()
+    {
+        // bird specific processing
+        cout << "scree" << endl;
+    }
+
 void testSandbox()
 {
-    Board* board = new Board();
-    cout << board->pieceBB[13] << endl;
+    Animal animal = Animal::dog;
+    Sound::getSound<Animal::dog>();
+    //Sound::getSound<animal>();
 
-    cout << board->initBlackKing() << endl;
-
-    for (int i=0; i<14; i++){
-        cout << board->displayBB(board->pieceBB[i]) << endl;
-    }
-    cout << board->displayBB(board->occupiedBB) << endl;
-    cout << board->displayBB(board->emptyBB) << endl;
 }
 
 void moveTests()
@@ -23,14 +47,16 @@ void moveTests()
     
     //e4
     Move move;
-    move.from = 0x1ULL << 11;
-    move.to = move.from << 16;
+    move.from = 11;
+    move.to = move.from+16;
     move.piece = Move::Pawn;
     move.color = Move::White;
     move.moveType = Move::Quiet;
 
+    const Move::MoveEnum moveType = move.moveType;
+
     Board* board = new Board();
-    board->updateByMove<move.moveType>(move);
+    board->updateByMove<Move::Quiet>(move);
     for (int i=0; i<14; i++){
         cout << board->displayBB(board->pieceBB[i]) << endl;
     }

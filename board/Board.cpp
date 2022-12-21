@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include "../move/Move.cpp"
 using namespace std;
 
@@ -165,7 +166,7 @@ std::tuple<uint64_t, uint64_t, uint64_t, int, int>  moveCharacteristics(Move mov
     uint64_t fromTo = from | to;
     int colorIndex = 7*move.color;
     int pieceIndex =  colorIndex + move.piece + 1;
-    return std::tuple(from, to, fromTo, colorIndex, pieceIndex);
+    return std::make_tuple(from, to, fromTo, colorIndex, pieceIndex);
 }
 
 template<>
@@ -189,7 +190,7 @@ void Board::updateByMove<Move::Quiet>(Move move){
         castleRights[2*move.color + 1] = false;
     }else if (move.piece == Move::Rook) {
         uint64_t shortRooks = (0x1ULL << 56) + 0x1ULL;
-        int shortCastle = (int)((shortRooks & from )!= 0);
+        int shortCastle = (int)((shortRooks & from) != 0);
         castleRights[2*move.color + 1*shortRooks] = false;
     }
 
@@ -201,7 +202,7 @@ void Board::updateByMove<Move::Quiet>(Move move){
 template<>
 void Board::updateByMove<Move::Capture>(Move move){
     //TODO
-    
+
     halfMoveClock = 0;
 }
 
