@@ -45,7 +45,7 @@ void moveTests()
 {
     //test standard moves from white
     
-    //e4
+        //e4
     Move move;
     move.from = 11;
     move.to = move.from+16;
@@ -62,6 +62,32 @@ void moveTests()
     }
     cout << board->displayBB(board->occupiedBB) << endl;
     cout << board->displayBB(board->emptyBB) << endl;
+
+        //e5
+        {
+        move.from = 51;
+        move.to = move.from-16;
+        move.piece = Move::Pawn;
+        move.color = Move::Black;
+        move.moveType = Move::Quiet;
+
+        board->updateByMove<Move::Quiet>(move);
+        cout << board->displayBoard() << endl;
+        }
+
+        //Nf3
+        {
+        move.from = 1;
+        move.to = move.from+16+1;
+        move.piece = Move::Knight;
+        move.color = Move::White;
+        move.moveType = Move::Quiet;
+
+        board->updateByMove<Move::Quiet>(move);
+        cout << board->displayBoard() << endl;
+        }
+
+        
 
     //test standard moves from black    
 
