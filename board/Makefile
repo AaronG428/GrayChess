@@ -1,2 +1,2 @@
 BoardTests: BoardTests.cpp Board.cpp
-	g++ -o ./BoardTests ./BoardTests.cpp
+	g++ -std=c++17 -o ./BoardTests ./BoardTests.cpp

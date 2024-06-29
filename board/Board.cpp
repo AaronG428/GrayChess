@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <stdlib.h>   
 #include <string>
 #include <tuple>
 #include "../move/Move.cpp"
@@ -12,13 +13,13 @@ using namespace std;
     //orientation:
     //  |a|b|c|d|e|f|g|h|
     // 8|R|N|B|Q|K|B|N|R| 
-    // 7|p|p|p|p|p|p|p|p|
+    // 7|P|P|P|P|P|P|P|P|
     // 6| | | | | | | | |
     // 5| | | | | | | | |
     // 4| | | | | | | | |
     // 3| | | | | | | | |
     // 2|p|p|p|p|p|p|p|p|
-    // 1|R|N|B|Q|K|B|N|R|
+    // 1|r|n|b|q|k|b|n|r|
 
     //a single piece on h1 corresponds to 0x01;
     //a single piece on a1 corresponds to 0x80 
@@ -34,6 +35,10 @@ public:
     uint64_t pieceBB[14]; //the 14 are white, wPawns, wBishops, wKnights, wRooks, wQueens, wKing, black, bPawns, bBishops, bKnights, bRooks, bQueens, bKing
     uint64_t emptyBB;
     uint64_t occupiedBB;
+
+    Move * lastMove; 
+
+    
 
 
     Board()
@@ -57,6 +62,79 @@ public:
         }
         return boardString;
         
+    }
+
+    void addPieces(uint64_t bb, string& boardString, char c){
+        for(int i=0; i<64; i++){
+            if(((0x1ULL<<(63-i)) & bb) != 0){
+                boardString[i] = c;
+            }
+        }
+    }
+
+    string displayBoard(){
+        string finalString = "";
+        string boardString = "";
+        
+        boardString.resize(64, ' ');
+
+        uint64_t b = 1; //wPawns
+        uint64_t bb = pieceBB[b];
+        addPieces(bb, boardString, 'p');
+
+        b = 2; //wBishops
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'b');
+
+        b = 3; //wKnights
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'n');
+
+        b = 4; //wRooks
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'r');
+
+        b = 5; //wQueens
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'q');
+
+        b = 6; //wKing
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'k');
+
+
+        b = 8; //bPawns
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'P');
+
+        b = 9; //bBishops
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'B');
+
+        b = 10; //bKnights 
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'N');
+
+        b = 11; //bRooks
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'R');
+
+        b = 12; //bQueens
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'Q');
+
+        b = 13; //bKing
+        bb = pieceBB[b];
+        addPieces(bb, boardString, 'K');
+        
+        for(int i = 0; i<8; i++){
+            for(int j = 0; j<8; j++){
+                finalString += "|";
+                finalString += boardString[8*i+j];
+            }
+            finalString += "|\n";
+        }
+        return finalString;
     }
 
     template<Move::MoveEnum moveType>
@@ -93,7 +171,10 @@ public:
 
         occupiedBB = pieceBB[0] ^ pieceBB[7];
         emptyBB = ~occupiedBB;
+        lastMove = nullptr;
     }
+
+    char* intToSquare(uint64_t i);
 
 
 
@@ -193,6 +274,8 @@ void Board::updateByMove<Move::Quiet>(Move move){
         int shortCastle = (int)((shortRooks & from) != 0);
         castleRights[2*move.color + 1*shortRooks] = false;
     }
+
+    lastMove = &move;
 
 }
 
