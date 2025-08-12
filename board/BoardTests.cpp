@@ -111,6 +111,8 @@ void runTests()
     }
     //Dedicated tests
     moveTests();
+
+    cout << (0x1ULL <<7) << endl;
     
     
 

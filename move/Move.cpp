@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <sstream>
+#include <string>
 
 using namespace std;
 
@@ -26,6 +28,11 @@ public:
         Promote,
         PromoteCapture
     };
+
+    enum RookSide{
+        Kingside,
+        Queenside
+    };
     
     MoveEnum moveType;
 
@@ -35,13 +42,53 @@ public:
     PieceEnum piece;
     ColorEnum color;
 
-    PieceEnum cPiece;
-    ColorEnum cColor;
+    PieceEnum cPiece; //Captured Piece
+    ColorEnum cColor; //Captured Color
 
-    uint64_t rFrom;
-    uint64_t fTo;
 
-    PieceEnum newPiece;
-    
+    RookSide rookSide;
+
+    PieceEnum newPiece; //for promotion
+
+    Move* prevMove; //Move History
+
+
+    static std::string toString(const Move& move) {
+        std::ostringstream sb;
+        sb << "Move: ";
+        sb << "from " << move.from << " to " << move.to << ", ";
+        sb << "piece " << move.piece << ", ";
+        sb << "color " << move.color << ", ";
+        sb << "captured piece " << move.cPiece << ", ";
+        sb << "captured color " << move.cColor << ", ";
+        sb << "rook side " << move.rookSide << ", ";
+        sb << "new piece " << move.newPiece;
+        return sb.str();
+    }
+
+    static std::string bitboardPositionToNotation(int position) {
+        char file = 'a' + (position % 8);
+        char rank = '1' + (position / 8);
+        return std::string(1, file) + std::string(1, rank);
+    }
+
+    static std::string notation(const Move& move) {
+        std::ostringstream sb;
+        switch(move.moveType){
+            case Move::Castle:
+                if (move.rookSide == Move::Kingside) {
+                    sb << "O-O";
+                } else {
+                    sb << "O-O-O";
+                }
+                return sb.str();
+                break;
+            case Move::Quiet:
+                break;
+            //TODO
+                
+        }
+
+    }
 
 };
