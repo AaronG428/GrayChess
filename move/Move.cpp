@@ -72,23 +72,20 @@ public:
         return std::string(1, file) + std::string(1, rank);
     }
 
-    static std::string notation(const Move& move) {
-        std::ostringstream sb;
-        switch(move.moveType){
-            case Move::Castle:
-                if (move.rookSide == Move::Kingside) {
-                    sb << "O-O";
-                } else {
-                    sb << "O-O-O";
-                }
-                return sb.str();
-                break;
-            case Move::Quiet:
-                break;
-            //TODO
-                
+    static std::string pieceNotiation(PieceEnum piece) {
+        switch(piece) {
+            case Bishop: return "B";
+            case Knight: return "N";
+            case Rook: return "R";
+            case Queen: return "Q";
+            case King: return "K";
+            default: return "";
         }
-
     }
+
+
+
+
+    
 
 };
