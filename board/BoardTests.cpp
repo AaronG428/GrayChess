@@ -4,42 +4,42 @@
 using namespace std;
 
 
-    enum class Animal { dog, cat, bird  };
-    class Sound
-    {
-    public:
-        template<Animal animal>
-        static void getSound ();
-    };
+    // enum class Animal { dog, cat, bird  };
+    // class Sound
+    // {
+    // public:
+    //     template<Animal animal>
+    //     static void getSound ();
+    // };
 
-    template<>
-    void Sound::getSound<Animal::dog> ()
-    {
-        // dog specific processing
-        cout << "woof" << endl;
-    }
+    // template<>
+    // void Sound::getSound<Animal::dog> ()
+    // {
+    //     // dog specific processing
+    //     cout << "woof" << endl;
+    // }
 
-    template<>
-    void Sound::getSound<Animal::cat> ()
-    {
-        // cat specific processing
-        cout << "mrow" << endl;
-    }
+    // template<>
+    // void Sound::getSound<Animal::cat> ()
+    // {
+    //     // cat specific processing
+    //     cout << "mrow" << endl;
+    // }
 
-    template<>
-    void Sound::getSound<Animal::bird> ()
-    {
-        // bird specific processing
-        cout << "scree" << endl;
-    }
+    // template<>
+    // void Sound::getSound<Animal::bird> ()
+    // {
+    //     // bird specific processing
+    //     cout << "scree" << endl;
+    // }
 
-void testSandbox()
-{
-    Animal animal = Animal::dog;
-    Sound::getSound<Animal::dog>();
-    //Sound::getSound<animal>();
+// void testSandbox()
+// {
+//     Animal animal = Animal::dog;
+//     Sound::getSound<Animal::dog>();
+//     //Sound::getSound<animal>();
 
-}
+// }
 
 void moveTests()
 {
@@ -57,11 +57,16 @@ void moveTests()
 
     Board* board = new Board();
     board->updateByMove<Move::Quiet>(move);
-    for (int i=0; i<14; i++){
-        cout << board->displayBB(board->pieceBB[i]) << endl;
-    }
-    cout << board->displayBB(board->occupiedBB) << endl;
-    cout << board->displayBB(board->emptyBB) << endl;
+    // for (int i=0; i<14; i++){
+    //     cout << board->displayBB(board->pieceBB[i]) << endl;
+    // }
+    // cout << board->displayBB(board->occupiedBB) << endl;
+    // cout << board->displayBB(board->emptyBB) << endl;
+    
+    cout << board->displayBoard() << endl;
+    //show white's attacks
+    cout << "White's attacks:" << endl;
+    cout << board->displayBB(board->attackBoard(true)) << endl;
 
         //e5
         {
@@ -73,8 +78,13 @@ void moveTests()
 
         board->updateByMove<Move::Quiet>(move);
         cout << board->displayBoard() << endl;
+
+        
         }
 
+    //show black's attacks
+    cout << "Black's attacks:" << endl;
+    cout << board->displayBB(board->attackBoard(false)) << endl;
         //Nf3
         {
         move.from = 1;
@@ -86,7 +96,8 @@ void moveTests()
         board->updateByMove<Move::Quiet>(move);
         cout << board->displayBoard() << endl;
         }
-
+    cout << "White's attacks:" << endl;
+    cout << board->displayBB(board->attackBoard(true)) << endl;
         
 
     //test standard moves from black    
@@ -104,11 +115,11 @@ void moveTests()
 void runTests()
 {
     //testing playground
-    bool runSandbox = false;
-    if(runSandbox){
-        testSandbox();
-        return;
-    }
+    // bool runSandbox = false;
+    // if(runSandbox){
+    //     testSandbox();
+    //     return;
+    // }
     //Dedicated tests
     moveTests();
 

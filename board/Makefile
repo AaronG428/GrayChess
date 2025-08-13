@@ -1,2 +1,2 @@
 BoardTests: BoardTests.cpp Board.cpp
-	g++ -std=c++17 -o ./BoardTests ./BoardTests.cpp
+	clang++ -std=c++17 -stdlib=libc++ -o ./BoardTests ./BoardTests.cpp 

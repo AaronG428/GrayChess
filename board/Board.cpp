@@ -2,6 +2,7 @@
 #include <stdlib.h>   
 #include <string>
 #include <tuple>
+#include <iostream>
 #include "../move/Move.cpp"
 using namespace std;
 
@@ -254,11 +255,11 @@ std::tuple<uint64_t, uint64_t, uint64_t, int, int>  moveCharacteristics(Move mov
 
 
 
-uint64_t propagateDirection(int b, int friendly = 0, int enemy = 0, int direction = 0, bool limit = false) {
+uint64_t propagateDirection(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, uint64_t direction = 0, bool limit = false) {
     // Direction guide:
     
     // |7|6|5|
-    // |4| |3|
+    // |4|X|3|
     // |2|1|0|
 
 
@@ -278,27 +279,28 @@ uint64_t propagateDirection(int b, int friendly = 0, int enemy = 0, int directio
     uint64_t LEFT_BITS  = 0b10010100; //  # dirs {2,4,7}
 
 
-    int d = direction && 7; // ensure 0..7
-    uint64_t cap  = ((DOWN_BITS  >> d) && 1) * dwnCap;
-    cap |= ((UP_BITS    >> d) && 1) * upCap;
-    cap |= ((RIGHT_BITS >> d) && 1) * rightCap;
-    cap |= ((LEFT_BITS  >> d) && 1) * leftCap;
+    int d = direction & 7; // ensure 0..7
+    uint64_t cap  = ((DOWN_BITS  >> d) & 1) * dwnCap;
+    cap |= ((UP_BITS    >> d) & 1) * upCap;
+    cap |= ((RIGHT_BITS >> d) & 1) * rightCap;
+    cap |= ((LEFT_BITS  >> d) & 1) * leftCap;
 
 
-    uint64_t safe_b = b && ~(cap|enemy); //and with complement to remove boundary pieces and captures propagating further
+    uint64_t safe_b = b & ~(cap|enemy); //and with complement to remove boundary pieces and captures propagating further
 
     
 
     bool shiftUp = direction > 3;
-    bool levelShift = (direction != 3) && (direction !=4);
+    bool levelShift = (direction != 3) & (direction !=4);
     int shiftAmt = 1;
     if (levelShift){shiftAmt = shiftUp? direction + 2 : 9 - direction;}
         
     
     uint64_t next =  shiftUp? safe_b << shiftAmt : safe_b >> shiftAmt;
-    
-    next = next & ~friendly;
 
+    // cout << "Safe_b: 0x" << std::hex << safe_b << endl;
+    next = next & ~friendly;
+    // cout << "Next: 0x" << std::hex << next << endl;
 
     if (limit){ return next;}
     else{
@@ -315,6 +317,9 @@ uint64_t propagateBishop(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, 
            propagateDirection(b, friendly, enemy, 2, limit) |
            propagateDirection(b, friendly, enemy, 0, limit);
 }
+// uint64_t propagateBishop(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
+//     return propagateDirection(b, friendly, enemy, 7, limit) ;
+// }
 
 uint64_t propagateRook(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
     return propagateDirection(b, friendly, enemy, 6, limit) |
@@ -324,7 +329,7 @@ uint64_t propagateRook(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bo
 }
 
 uint64_t propagateQueen(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false){
-    propagateRook(b, friendly, enemy, limit) | propagateBishop(b, friendly, enemy, limit);
+    return propagateRook(b, friendly, enemy, limit) | propagateBishop(b, friendly, enemy, limit);
 }
 
 uint64_t propagateKing(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0) {
@@ -420,9 +425,9 @@ uint64_t Board::attackBoard(bool white){
     uint64_t king     = 0;
     
     //compute attack squares
-    uint64_t centerPawns = pawns & 0x7e7e7e7e7e7e00;
-    uint64_t leftPawns   = pawns & 0x80808080808000;
-    uint64_t rightPawns  = pawns & 0x01010101010100;
+    uint64_t centerPawns = 0x7e7e7e7e7e7e00;
+    uint64_t leftPawns   = 0x80808080808000;
+    uint64_t rightPawns  = 0x01010101010100;
 
     if (white){ //squares that the white pieces attack        
         friendly = pieceBB[0];
@@ -432,7 +437,13 @@ uint64_t Board::attackBoard(bool white){
         rooks   =  pieceBB[4];
         queens  =  pieceBB[5];
         king    =  pieceBB[6];
-        enemy   =  pieceBB[7];
+        enemy   =  pieceBB[7]; 
+        
+
+
+        centerPawns &= pawns;
+        leftPawns &= pawns;
+        rightPawns &= pawns;
 
         pawnAttacks = ((centerPawns << 9) | (centerPawns << 7) | (leftPawns << 7) | (rightPawns << 9));
         pawnAttacks &= ~friendly;
@@ -443,7 +454,9 @@ uint64_t Board::attackBoard(bool white){
         queenAttacks  = propagateQueen(queens, friendly, enemy);
         kingAttacks   = propagateKing(king, friendly, enemy);
 
-        attacks = pawnAttacks | bishopAttacks | knightAttacks | rookAttacks | queenAttacks | kingAttacks;
+        //testing
+        // pawnAttacks = centerPawns;
+        
 
 
     }else{
@@ -456,11 +469,22 @@ uint64_t Board::attackBoard(bool white){
         king     = pieceBB[13];
         enemy    = pieceBB[0];
 
+        centerPawns &= pawns;
+        leftPawns &= pawns;
+        rightPawns &= pawns;
+
         pawnAttacks = ((centerPawns >> 9) | (centerPawns >> 7) | (leftPawns >> 9) | (rightPawns >> 7));
 
+        bishopAttacks = propagateBishop(bishops, friendly, enemy);
+        knightAttacks = propagateKnight(knights, friendly, enemy);
+        rookAttacks   = propagateRook(rooks, friendly, enemy);
+        queenAttacks  = propagateQueen(queens, friendly, enemy);
+        kingAttacks   = propagateKing(king, friendly, enemy);
 
-        attacks = pawnAttacks | bishopAttacks | knightAttacks | rookAttacks | queenAttacks | kingAttacks;
+        
     }
+    attacks = pawnAttacks | bishopAttacks | knightAttacks | rookAttacks | queenAttacks | kingAttacks;
+    // attacks = bishopAttacks; //testing
     return attacks;
 }
 

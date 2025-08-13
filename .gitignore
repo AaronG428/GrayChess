@@ -2,3 +2,4 @@ Resources/*
 *Tests
 .DS_Store
 .vscode/*
+*.dSYM
