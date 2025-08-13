@@ -43,33 +43,34 @@ using namespace std;
 
 void moveTests()
 {
+    Board* board = new Board();
+    
+    // const Move::MoveEnum moveType = move.moveType;
+    
     //test standard moves from white
     
         //e4
     Move move;
-    move.from = 11;
-    move.to = move.from+16;
-    move.piece = Move::Pawn;
-    move.color = Move::White;
-    move.moveType = Move::Quiet;
+    {
+        
+        move.from = 11;
+        move.to = move.from+16;
+        move.piece = Move::Pawn;
+        move.color = Move::White;
+        move.moveType = Move::Quiet;
+        
+        board->updateByMove<Move::Quiet>(move);
+        cout << Move::notation(move) << endl;
+        cout << board->displayBoard() << endl;
+        //show white's attacks
+        // cout << "White's attacks:" << endl;
+        // string attacks = board->displayBoard();
+        // board->addPieces(board->attackBoard(true), attacks, 'X');
+        // cout << attacks << endl;
+    }
 
-    const Move::MoveEnum moveType = move.moveType;
-
-    Board* board = new Board();
-    board->updateByMove<Move::Quiet>(move);
-    // for (int i=0; i<14; i++){
-    //     cout << board->displayBB(board->pieceBB[i]) << endl;
-    // }
-    // cout << board->displayBB(board->occupiedBB) << endl;
-    // cout << board->displayBB(board->emptyBB) << endl;
-    
-    cout << board->displayBoard() << endl;
-    //show white's attacks
-    cout << "White's attacks:" << endl;
-    cout << board->displayBB(board->attackBoard(true)) << endl;
-
-        //e5
-        {
+    //e5
+    {
         move.from = 51;
         move.to = move.from-16;
         move.piece = Move::Pawn;
@@ -77,16 +78,19 @@ void moveTests()
         move.moveType = Move::Quiet;
 
         board->updateByMove<Move::Quiet>(move);
+        cout << Move::notation(move) << endl;
         cout << board->displayBoard() << endl;
+        //show black's attacks
+        // cout << "Black's attacks:" << endl;
+        // string attacks = board->displayBoard();
+        // board->addPieces(board->attackBoard(false), attacks, 'X');
+        // cout << attacks << endl;
 
-        
-        }
+    }
+   
 
-    //show black's attacks
-    cout << "Black's attacks:" << endl;
-    cout << board->displayBB(board->attackBoard(false)) << endl;
-        //Nf3
-        {
+    //Nf3
+    {
         move.from = 1;
         move.to = move.from+16+1;
         move.piece = Move::Knight;
@@ -94,10 +98,14 @@ void moveTests()
         move.moveType = Move::Quiet;
 
         board->updateByMove<Move::Quiet>(move);
+        cout << Move::notation(move) << endl;
         cout << board->displayBoard() << endl;
-        }
-    cout << "White's attacks:" << endl;
-    cout << board->displayBB(board->attackBoard(true)) << endl;
+        //show white's attacks
+        cout << "White's attacks:" << endl;
+        string attacks = board->displayBoard(board->attackBoard(true));
+        cout << attacks << endl;
+    }
+    
         
 
     //test standard moves from black    

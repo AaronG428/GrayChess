@@ -37,7 +37,7 @@ public:
     uint64_t emptyBB;
     uint64_t occupiedBB;
 
-    Move * lastMove; 
+    Move* lastMove; 
 
     
 
@@ -73,8 +73,7 @@ public:
         }
     }
 
-    string displayBoard(){
-        string finalString = "";
+    string constructBoardString(){
         string boardString = "";
         
         boardString.resize(64, ' ');
@@ -127,7 +126,12 @@ public:
         b = 13; //bKing
         bb = pieceBB[b];
         addPieces(bb, boardString, 'K');
-        
+        return boardString;
+    }
+
+    string displayBoard(){
+        string finalString = "";
+        string boardString = constructBoardString();
         for(int i = 0; i<8; i++){
             for(int j = 0; j<8; j++){
                 finalString += "|";
@@ -137,6 +141,21 @@ public:
         }
         return finalString;
     }
+
+    string displayBoard(uint64_t bb){
+        string finalString = "";
+        string boardString = constructBoardString();
+        addPieces(bb, boardString, 'X');
+        for(int i = 0; i<8; i++){
+            for(int j = 0; j<8; j++){
+                finalString += "|";
+                finalString += boardString[8*i+j];
+            }
+            finalString += "|\n";
+        }
+        return finalString;
+    }
+
 
     template<Move::MoveEnum moveType>
     void updateByMove (Move move){
@@ -170,17 +189,12 @@ public:
         pieceBB[12] = initBlackQueens();
         pieceBB[13] = initBlackKing();
 
-        occupiedBB = pieceBB[0] ^ pieceBB[7];
+        occupiedBB = pieceBB[0] | pieceBB[7];
         emptyBB = ~occupiedBB;
         lastMove = nullptr;
     }
 
     char* intToSquare(uint64_t i);
-
-
-
-
-
 
 
     
@@ -242,6 +256,10 @@ public:
 
     uint64_t attackBoard(bool white);
 
+    std::string moveNotation(const Move &move);
+    bool check();
+    bool checkMate();
+    bool staleMate();
 };
 
 std::tuple<uint64_t, uint64_t, uint64_t, int, int>  moveCharacteristics(Move move){
@@ -486,6 +504,110 @@ uint64_t Board::attackBoard(bool white){
     attacks = pawnAttacks | bishopAttacks | knightAttacks | rookAttacks | queenAttacks | kingAttacks;
     // attacks = bishopAttacks; //testing
     return attacks;
+}
+
+int countBits(uint64_t b){
+    int count = 0;
+    uint64_t next = b;
+    while(next > 0){
+        next &= next-1;
+        count++;
+    }
+    return count;
+}
+    //Does not append check and mate notation
+    //need to disambiguate when multiple pieces can make the same move, can't do this without board info
+    //This should maybe be a method of Board
+
+//evaluates the move notation of a move that has just occurred
+std::string Board::moveNotation(const Move& move) {
+    std::ostringstream sb;
+    if (move.moveType == Move::Castle){
+        if (move.rookSide == Move::Kingside) {
+            sb << "O-O";
+        } else {
+            sb << "O-O-O";
+        }
+        return sb.str();
+    }
+    sb << Move::pieceNotiation(move.piece);
+    switch (move.piece) { 
+        case Move::Bishop:
+            //TODO multiple bishops
+            
+            
+            break;
+
+        case Move::Knight:
+            //TODO multiple knights
+            
+            break;
+
+        case Move::Rook:
+            //TODO multiple rooks
+            
+            break;
+
+        case Move::Queen:
+            //TODO multiple queens
+            
+            break;
+    }
+    switch(move.moveType){
+
+        
+        case Move::Capture:
+            sb << "x";
+            sb << Move::bitboardPositionToNotation(move.to);
+            break;
+        case Move::Promote:
+            sb << "=";
+            sb << Move::pieceNotiation(move.newPiece);
+            break;
+        case Move::PromoteCapture:
+            sb << "x";
+            sb << Move::bitboardPositionToNotation(move.to);
+            sb << "=";
+            sb << Move::pieceNotiation(move.newPiece);
+            break;
+        default:
+            break;
+            
+    }
+    sb << Move::bitboardPositionToNotation(move.to);
+    return sb.str();
+
+}
+
+bool Board::check(){
+    if (this->whiteTurn) {
+        //black's attacks
+        uint64_t blackAttacks = this->attackBoard(false);
+        if (blackAttacks & this->pieceBB[6]) {
+            return true;
+        }
+        return false;
+    } else {
+        // Check if black is in check
+        uint64_t whiteAttacks = this->attackBoard(true);
+        if (whiteAttacks & this->pieceBB[13]) {
+            return true;
+        }
+        return false;
+    }
+}
+
+bool Board::checkMate(){
+    if (!this->check()){
+        return false;
+    }
+    //TODO
+    return false;
+}
+
+bool Board::staleMate(){
+    //TODO
+    return false;
 }
 
 

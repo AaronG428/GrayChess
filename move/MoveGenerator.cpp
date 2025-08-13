@@ -14,14 +14,14 @@ class MoveGenerator
     };
 
     //static generator function?
-    static vector<Move> generateMoves(Board board){
+    static vector<Move> generateMoves(Board& board){
         //check if in endgame state
-        if( checkMate(board) || staleMate(board) )
+        if( board.checkMate() || board.staleMate() )
         {
             return vector<Move>();
         }
 
-        if( check(board)){
+        if( board.check()){
             //add all possible moves that do not leave the king in check
         }
         
@@ -43,35 +43,8 @@ class MoveGenerator
         return;
     }
 
-    static bool check(Board board){
-        if (board.whiteTurn) {
-            //black's attacks
-            uint64_t blackAttacks = board.attackBoard(false);
-            if (blackAttacks & board.pieceBB[6]) {
-                return true;
-            }
-            return false;
-        } else {
-            // Check if black is in check
-            uint64_t whiteAttacks = board.attackBoard(true);
-            if (whiteAttacks & board.pieceBB[13]) {
-                return true;
-            }
-            return false;
-        }
-    }
 
-    static bool checkMate(Board board){
-        if (!check(board)){
-            return false;
-        }
-        //TODO
-        return false;
-    }
 
-    static bool staleMate(Board board){
-        //TODO
-        return false;
-    }
+
 
 };
