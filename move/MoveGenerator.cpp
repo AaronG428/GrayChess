@@ -44,8 +44,21 @@ class MoveGenerator
     }
 
     static bool check(Board board){
-        
-        return false;
+        if (board.whiteTurn) {
+            //black's attacks
+            uint64_t blackAttacks = board.attackBoard(false);
+            if (blackAttacks & board.pieceBB[6]) {
+                return true;
+            }
+            return false;
+        } else {
+            // Check if black is in check
+            uint64_t whiteAttacks = board.attackBoard(true);
+            if (whiteAttacks & board.pieceBB[13]) {
+                return true;
+            }
+            return false;
+        }
     }
 
     static bool checkMate(Board board){
