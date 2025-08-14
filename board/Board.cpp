@@ -257,6 +257,7 @@ public:
     uint64_t attackBoard(bool white);
 
     std::string moveNotation(const Move &move);
+
     bool check();
     bool checkMate();
     bool staleMate();
@@ -326,18 +327,12 @@ uint64_t propagateDirection(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 
     }
 }
 
-
-
-
 uint64_t propagateBishop(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
     return propagateDirection(b, friendly, enemy, 7, limit) |
            propagateDirection(b, friendly, enemy, 5, limit) |
            propagateDirection(b, friendly, enemy, 2, limit) |
            propagateDirection(b, friendly, enemy, 0, limit);
 }
-// uint64_t propagateBishop(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
-//     return propagateDirection(b, friendly, enemy, 7, limit) ;
-// }
 
 uint64_t propagateRook(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
     return propagateDirection(b, friendly, enemy, 6, limit) |
@@ -423,7 +418,6 @@ uint64_t propagateKnight(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0) 
     
 }
     
-
 uint64_t Board::attackBoard(bool white){
     uint64_t attacks       = 0;
     uint64_t pawnAttacks   = 0;
@@ -515,10 +509,8 @@ int countBits(uint64_t b){
     }
     return count;
 }
-    //Does not append check and mate notation
-    //need to disambiguate when multiple pieces can make the same move, can't do this without board info
-    //This should maybe be a method of Board
 
+//TODO need to disambiguate when multiple pieces can make the same move, can't do this without board info
 //evaluates the move notation of a move that has just occurred
 std::string Board::moveNotation(const Move& move) {
     std::ostringstream sb;
@@ -532,24 +524,41 @@ std::string Board::moveNotation(const Move& move) {
     }
     sb << Move::pieceNotiation(move.piece);
     switch (move.piece) { 
+        int index = (this->whiteTurn) ? 0 : 7;
         case Move::Bishop:
             //TODO multiple bishops
-            
+            index += 2;
+            uint64_t bishops = this->pieceBB[index];
+            int bishopCount = countBits(bishops);
+            if (bishopCount < 2){
+                break;
+            }else{
+
+            }
             
             break;
 
         case Move::Knight:
             //TODO multiple knights
+            index += 3;
+            uint64_t knights = this->pieceBB[index];
+            int knightCount = countBits(knights);
             
             break;
 
         case Move::Rook:
             //TODO multiple rooks
+            index += 4;
+            uint64_t rooks = this->pieceBB[index];
+            int rookCount = countBits(rooks);
             
             break;
 
         case Move::Queen:
             //TODO multiple queens
+            index += 5;
+            uint64_t queens = this->pieceBB[index];
+            int queenCount = countBits(queens);
             
             break;
     }
@@ -575,6 +584,13 @@ std::string Board::moveNotation(const Move& move) {
             
     }
     sb << Move::bitboardPositionToNotation(move.to);
+    if(this->check()){
+        if(this->checkMate()){
+            sb << "#";
+        }else{
+            sb << "+";
+        }
+    }
     return sb.str();
 
 }
