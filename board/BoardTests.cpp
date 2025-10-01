@@ -60,7 +60,7 @@ void moveTests()
         move.moveType = Move::Quiet;
         
         board->updateByMove<Move::Quiet>(move);
-        cout << Move::notation(move) << endl;
+        cout << board->moveNotation(move) << endl;
         cout << board->displayBoard() << endl;
         //show white's attacks
         // cout << "White's attacks:" << endl;
@@ -78,7 +78,7 @@ void moveTests()
         move.moveType = Move::Quiet;
 
         board->updateByMove<Move::Quiet>(move);
-        cout << Move::notation(move) << endl;
+        cout << board->moveNotation(move) << endl;
         cout << board->displayBoard() << endl;
         //show black's attacks
         // cout << "Black's attacks:" << endl;
@@ -98,7 +98,41 @@ void moveTests()
         move.moveType = Move::Quiet;
 
         board->updateByMove<Move::Quiet>(move);
-        cout << Move::notation(move) << endl;
+        cout << board->moveNotation(move) << endl;
+        cout << board->displayBoard() << endl;
+        //show white's attacks
+        cout << "White's attacks:" << endl;
+        string attacks = board->displayBoard(board->attackBoard(true));
+        cout << attacks << endl;
+    }
+
+        //Nf6
+    {
+        move.from = 57;
+        move.to = move.from-16+1;
+        move.piece = Move::Knight;
+        move.color = Move::Black;
+        move.moveType = Move::Quiet;
+
+        board->updateByMove<Move::Quiet>(move);
+        cout << board->moveNotation(move) << endl;
+        cout << board->displayBoard() << endl;
+        //show white's attacks
+        cout << "Blacks's attacks:" << endl;
+        string attacks = board->displayBoard(board->attackBoard(true));
+        cout << attacks << endl;
+    }
+
+        //Nxe5
+    {
+        move.from = 2+16;
+        move.to = move.from+16+1;
+        move.piece = Move::Knight;
+        move.color = Move::White;
+        move.moveType = Move::Capture;
+
+        board->updateByMove<Move::Capture>(move);
+        cout << board->moveNotation(move) << endl;
         cout << board->displayBoard() << endl;
         //show white's attacks
         cout << "White's attacks:" << endl;

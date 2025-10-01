@@ -274,149 +274,6 @@ std::tuple<uint64_t, uint64_t, uint64_t, int, int>  moveCharacteristics(Move mov
 
 
 
-uint64_t propagateDirection(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, uint64_t direction = 0, bool limit = false) {
-    // Direction guide:
-    
-    // |7|6|5|
-    // |4|X|3|
-    // |2|1|0|
-
-
-    if (b == 0) {
-        return 0;
-    }
-    // # base masks
-    uint64_t dwnCap   = 0xff;
-    uint64_t upCap    = dwnCap << 56;
-    uint64_t rightCap = 0x0101010101010101;
-    uint64_t leftCap  = rightCap << 7;
-
-    // # For directions 0..7, set a bit if that direction includes the component
-    uint64_t DOWN_BITS  = 0b00000111; //  # dirs {0,1,2}
-    uint64_t UP_BITS    = 0b11100000; //  # dirs {5,6,7}
-    uint64_t RIGHT_BITS = 0b00101001; //  # dirs {0,3,5}
-    uint64_t LEFT_BITS  = 0b10010100; //  # dirs {2,4,7}
-
-
-    int d = direction & 7; // ensure 0..7
-    uint64_t cap  = ((DOWN_BITS  >> d) & 1) * dwnCap;
-    cap |= ((UP_BITS    >> d) & 1) * upCap;
-    cap |= ((RIGHT_BITS >> d) & 1) * rightCap;
-    cap |= ((LEFT_BITS  >> d) & 1) * leftCap;
-
-
-    uint64_t safe_b = b & ~(cap|enemy); //and with complement to remove boundary pieces and captures propagating further
-
-    
-
-    bool shiftUp = direction > 3;
-    bool levelShift = (direction != 3) & (direction !=4);
-    int shiftAmt = 1;
-    if (levelShift){shiftAmt = shiftUp? direction + 2 : 9 - direction;}
-        
-    
-    uint64_t next =  shiftUp? safe_b << shiftAmt : safe_b >> shiftAmt;
-
-    // cout << "Safe_b: 0x" << std::hex << safe_b << endl;
-    next = next & ~friendly;
-    // cout << "Next: 0x" << std::hex << next << endl;
-
-    if (limit){ return next;}
-    else{
-        return next | propagateDirection(next, friendly, enemy, direction);
-    }
-}
-
-uint64_t propagateBishop(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
-    return propagateDirection(b, friendly, enemy, 7, limit) |
-           propagateDirection(b, friendly, enemy, 5, limit) |
-           propagateDirection(b, friendly, enemy, 2, limit) |
-           propagateDirection(b, friendly, enemy, 0, limit);
-}
-
-uint64_t propagateRook(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false) {
-    return propagateDirection(b, friendly, enemy, 6, limit) |
-           propagateDirection(b, friendly, enemy, 4, limit) |
-           propagateDirection(b, friendly, enemy, 3, limit) |
-           propagateDirection(b, friendly, enemy, 1, limit);
-}
-
-uint64_t propagateQueen(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0, bool limit = false){
-    return propagateRook(b, friendly, enemy, limit) | propagateBishop(b, friendly, enemy, limit);
-}
-
-uint64_t propagateKing(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0) {
-    return propagateQueen(b, friendly, enemy, true);
-}
-
-uint64_t propagateKnight(uint64_t b, uint64_t friendly = 0, uint64_t enemy = 0) {
-
-    /*
-    Knight movement guide
-    | |7| |6| |
-    |5| | | |4|
-    | | |X| | |
-    |3| | | |2|
-    | |1| |0| |
-
-    Shift amounts
-    0: >> 17
-    1: >> 15
-    2: >> 10
-    3: >> 6
-    4: << 6
-    5: << 10
-    6: << 15
-    7: << 17
-    */
-
-
-    uint64_t full_board = 0xffffffffffffffff;
-    // # base masks
-    uint64_t dwnCap   = 0xff;
-    uint64_t upCap    = dwnCap << 56;
-    uint64_t rightCap = 0x0101010101010101;
-    uint64_t leftCap  = rightCap << 7;
-
-    uint64_t twoDwnCap = dwnCap << 8;
-    uint64_t twoUpCap  = upCap >> 8;
-    uint64_t twoRightCap = rightCap << 1;
-    uint64_t twoLeftCap = leftCap >> 1 ;
-
-    
-
-    // # For directions 0..7, set a bit if that direction includes the component
-    uint64_t DOWN_BITS      = 0b00001111; // # dirs {0,1,2,3}
-    uint64_t UP_BITS        = 0b11110000; // # dirs {4,5,6,7}
-    uint64_t RIGHT_BITS     = 0b01010101; // # dirs {0,2,4,6}
-    uint64_t LEFT_BITS      = 0b10101010; // # dirs {1,3,5,7}
-
-    uint64_t TWO_DOWN_BITS  = 0b00000011; //  # dirs {0,1}
-    uint64_t TWO_UP_BITS    = 0b11000000; //  # dirs {6,7}
-    uint64_t TWO_RIGHT_BITS = 0b00010100; //  # dirs {2,4}
-    uint64_t TWO_LEFT_BITS  = 0b00101000; //  # dirs {3,5}
-    
-    int shiftAmts[8] = {-17, -15, -10, -6, 6, 10, 15, 17};
-    uint64_t next = 0;
-    
-    for (int d=0; d<8; d++){
-        uint64_t cap  = ((DOWN_BITS      >> d) & 1) * dwnCap;
-        cap |= ((UP_BITS        >> d) & 1) * upCap;
-        cap |= ((RIGHT_BITS     >> d) & 1) * rightCap;
-        cap |= ((LEFT_BITS      >> d) & 1) * leftCap;
-        cap |= ((TWO_DOWN_BITS  >> d) & 1) * twoDwnCap;
-        cap |= ((TWO_UP_BITS    >> d) & 1) * twoUpCap;
-        cap |= ((TWO_RIGHT_BITS >> d) & 1) * twoRightCap;
-        cap |= ((TWO_LEFT_BITS  >> d) & 1) * twoLeftCap;
-        uint64_t safe_b = b & ~(cap);
-        int s = shiftAmts[d];
-        next |=  s < 0 ? safe_b >> -s : safe_b << s;
-    }
-    next &= full_board;
-    next &= ~friendly;
-    return next;
-    
-}
     
 uint64_t Board::attackBoard(bool white){
     uint64_t attacks       = 0;
@@ -460,11 +317,11 @@ uint64_t Board::attackBoard(bool white){
         pawnAttacks = ((centerPawns << 9) | (centerPawns << 7) | (leftPawns << 7) | (rightPawns << 9));
         pawnAttacks &= ~friendly;
         
-        bishopAttacks = propagateBishop(bishops, friendly, enemy);
-        knightAttacks = propagateKnight(knights, friendly, enemy);
-        rookAttacks   = propagateRook(rooks, friendly, enemy);
-        queenAttacks  = propagateQueen(queens, friendly, enemy);
-        kingAttacks   = propagateKing(king, friendly, enemy);
+        bishopAttacks = Move::propagateBishop(bishops, friendly, enemy);
+        knightAttacks = Move::propagateKnight(knights, friendly, enemy);
+        rookAttacks   = Move::propagateRook(rooks, friendly, enemy);
+        queenAttacks  = Move::propagateQueen(queens, friendly, enemy);
+        kingAttacks   = Move::propagateKing(king, friendly, enemy);
 
         //testing
         // pawnAttacks = centerPawns;
@@ -487,11 +344,11 @@ uint64_t Board::attackBoard(bool white){
 
         pawnAttacks = ((centerPawns >> 9) | (centerPawns >> 7) | (leftPawns >> 9) | (rightPawns >> 7));
 
-        bishopAttacks = propagateBishop(bishops, friendly, enemy);
-        knightAttacks = propagateKnight(knights, friendly, enemy);
-        rookAttacks   = propagateRook(rooks, friendly, enemy);
-        queenAttacks  = propagateQueen(queens, friendly, enemy);
-        kingAttacks   = propagateKing(king, friendly, enemy);
+        bishopAttacks = Move::propagateBishop(bishops, friendly, enemy);
+        knightAttacks = Move::propagateKnight(knights, friendly, enemy);
+        rookAttacks   = Move::propagateRook(rooks, friendly, enemy);
+        queenAttacks  = Move::propagateQueen(queens, friendly, enemy);
+        kingAttacks   = Move::propagateKing(king, friendly, enemy);
 
         
     }
@@ -523,17 +380,18 @@ std::string Board::moveNotation(const Move& move) {
         return sb.str();
     }
     sb << Move::pieceNotiation(move.piece);
+    int index = (this->whiteTurn) ? 0 : 7;
+    uint64_t pieces;
+    int pieceCount;
     switch (move.piece) { 
-        int index = (this->whiteTurn) ? 0 : 7;
+        
         case Move::Bishop:
             //TODO multiple bishops
             index += 2;
-            uint64_t bishops = this->pieceBB[index];
-            int bishopCount = countBits(bishops);
-            if (bishopCount < 2){
+            pieces = this->pieceBB[index];
+            pieceCount = countBits(pieces);
+            if (pieceCount < 2){
                 break;
-            }else{
-
             }
             
             break;
@@ -541,41 +399,46 @@ std::string Board::moveNotation(const Move& move) {
         case Move::Knight:
             //TODO multiple knights
             index += 3;
-            uint64_t knights = this->pieceBB[index];
-            int knightCount = countBits(knights);
+            pieces = this->pieceBB[index];
+            pieceCount = countBits(pieces);
+            if (pieceCount < 2){
+                break;
+            }
             
             break;
 
         case Move::Rook:
             //TODO multiple rooks
             index += 4;
-            uint64_t rooks = this->pieceBB[index];
-            int rookCount = countBits(rooks);
+            pieces = this->pieceBB[index];
+            pieceCount = countBits(pieces);
+            if (pieceCount < 2){
+                break;
+            }
             
             break;
 
         case Move::Queen:
             //TODO multiple queens
             index += 5;
-            uint64_t queens = this->pieceBB[index];
-            int queenCount = countBits(queens);
+            pieces = this->pieceBB[index];
+            pieceCount = countBits(pieces);
+            if (pieceCount < 2){
+                break;
+            }
             
+            break;
+        default:
             break;
     }
     switch(move.moveType){
 
         
         case Move::Capture:
-            sb << "x";
-            sb << Move::bitboardPositionToNotation(move.to);
-            break;
-        case Move::Promote:
-            sb << "=";
-            sb << Move::pieceNotiation(move.newPiece);
-            break;
         case Move::PromoteCapture:
             sb << "x";
-            sb << Move::bitboardPositionToNotation(move.to);
+            break;
+        case Move::Promote:
             sb << "=";
             sb << Move::pieceNotiation(move.newPiece);
             break;
@@ -584,6 +447,10 @@ std::string Board::moveNotation(const Move& move) {
             
     }
     sb << Move::bitboardPositionToNotation(move.to);
+    if(move.moveType == Move::PromoteCapture){
+        sb << "=";
+        sb << Move::pieceNotiation(move.newPiece);
+    }
     if(this->check()){
         if(this->checkMate()){
             sb << "#";
@@ -656,9 +523,6 @@ void Board::updateByMove<Move::Quiet>(Move move){
     
 
 }
-
-
-
 
 
 
