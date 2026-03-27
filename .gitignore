@@ -3,3 +3,4 @@ Resources/*
 .DS_Store
 .vscode/*
 *.dSYM
+*.md
