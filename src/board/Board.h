@@ -36,6 +36,8 @@ public:
     int      enPassantSquare; // -1 if none, else the ep-target square index
     int      fullMoveNumber;
 
+    uint64_t hash = 0;   // Zobrist hash — maintained incrementally (Phase 8)
+
     uint64_t pieceBB[14];
     uint64_t emptyBB;
     uint64_t occupiedBB;

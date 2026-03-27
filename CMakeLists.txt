@@ -11,6 +11,8 @@ add_library(engine
     src/move/MoveGenerator.cpp
     src/move/AttackTables.cpp
     src/engine/Eval.cpp
+    src/engine/Zobrist.cpp
+    src/engine/TranspositionTable.cpp
 )
 target_include_directories(engine PUBLIC src/)
 
@@ -35,10 +37,18 @@ target_link_libraries(PerftTests engine)
 add_executable(TestEval tests/TestEval.cpp)
 target_link_libraries(TestEval engine)
 
+add_executable(TestZobrist tests/TestZobrist.cpp)
+target_link_libraries(TestZobrist engine)
+
+add_executable(TestTranspositionTable tests/TestTranspositionTable.cpp)
+target_link_libraries(TestTranspositionTable engine)
+
 enable_testing()
-add_test(NAME Bits         COMMAND TestBits)
-add_test(NAME AttackTables COMMAND TestAttackTables)
-add_test(NAME Board        COMMAND TestBoard)
-add_test(NAME MoveGen      COMMAND TestMoveGen)
-add_test(NAME Perft        COMMAND PerftTests)
-add_test(NAME Eval         COMMAND TestEval)
+add_test(NAME Bits                COMMAND TestBits)
+add_test(NAME AttackTables        COMMAND TestAttackTables)
+add_test(NAME Board               COMMAND TestBoard)
+add_test(NAME MoveGen             COMMAND TestMoveGen)
+add_test(NAME Perft               COMMAND PerftTests)
+add_test(NAME Eval                COMMAND TestEval)
+add_test(NAME Zobrist             COMMAND TestZobrist)
+add_test(NAME TranspositionTable  COMMAND TestTranspositionTable)
