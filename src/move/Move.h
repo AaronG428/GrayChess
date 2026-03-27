@@ -7,7 +7,7 @@ class Move {
 public:
     enum PieceEnum { Pawn, Bishop, Knight, Rook, Queen, King };
     enum ColorEnum  { White, Black };
-    enum MoveEnum   { Quiet, Castle, Capture, Promote, PromoteCapture };
+    enum MoveEnum   { Quiet, Castle, Capture, Promote, PromoteCapture, EnPassant };
     enum RookSide   { Kingside, Queenside };
 
     MoveEnum  moveType;
@@ -19,6 +19,11 @@ public:
     ColorEnum cColor;  // captured piece color
     RookSide  rookSide;
     PieceEnum newPiece; // for promotion
+
+    // Saved before each updateByMove mutation — used by unmakeMove()
+    int  prevEnPassantSquare;
+    int  prevHalfMoveClock;
+    bool prevCastleRights[4];
 
     static std::string toString(const Move& move);
     static std::string bitboardPositionToNotation(int position);

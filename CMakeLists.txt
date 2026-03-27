@@ -9,6 +9,7 @@ add_library(engine
     src/move/Move.cpp
     src/board/Board.cpp
     src/move/MoveGenerator.cpp
+    src/move/AttackTables.cpp
 )
 target_include_directories(engine PUBLIC src/)
 

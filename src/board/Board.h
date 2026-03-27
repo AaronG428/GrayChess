@@ -71,6 +71,9 @@ public:
     template<> void updateByMove<Move::Capture>(Move move);
     template<> void updateByMove<Move::Promote>(Move move);
     template<> void updateByMove<Move::PromoteCapture>(Move move);
+    template<> void updateByMove<Move::EnPassant>(Move move);
+
+    void unmakeMove();
 
 private:
     uint64_t initWhite()        const { return 0xffffULL; }
