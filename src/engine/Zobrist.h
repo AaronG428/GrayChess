@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 
+class Board; // forward declaration at global scope so Zobrist functions use ::Board
+
 // Zobrist hashing — header-only.
 // All keys are populated once by Zobrist::init() at program startup.
 // Board::hash is maintained incrementally by XOR-ing keys in/out
@@ -26,7 +28,7 @@ namespace Zobrist {
 
     // Return the hash for a board built from scratch (used by loadFEN / init).
     // TODO Phase 8: XOR all occupied squares + side + castle + ep
-    uint64_t compute(const class Board& board);
+    uint64_t compute(const Board& board);
 
     // Return the XOR delta for moving a piece (quiet move).
     // TODO Phase 8: PIECE_KEYS[pieceIdx][from] ^ PIECE_KEYS[pieceIdx][to]
