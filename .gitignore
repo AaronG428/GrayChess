@@ -5,3 +5,4 @@ Resources/*
 *.dSYM
 *.md
 build/*
+legacy/*
