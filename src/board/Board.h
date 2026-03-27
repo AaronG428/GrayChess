@@ -44,6 +44,7 @@ public:
 
     Board();
     void init();
+    void loadFEN(const std::string& fen);
 
     // Display
     std::string displayBB(uint64_t bb) const;
@@ -74,6 +75,10 @@ public:
     template<> void updateByMove<Move::EnPassant>(Move move);
 
     void unmakeMove();
+
+    // Runtime dispatch — applies any move type without a compile-time template argument.
+    // Used by legality filtering and the search loop.
+    void applyMove(const Move& m);
 
 private:
     uint64_t initWhite()        const { return 0xffffULL; }

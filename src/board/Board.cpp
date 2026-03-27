@@ -1,5 +1,6 @@
 #include "Board.h"
 #include "../move/AttackTables.h"
+#include "../move/MoveGenerator.h"
 #include "../utils/Bits.h"
 #include <iostream>
 
@@ -34,6 +35,85 @@ static void savePrevState(Move& move, const Board& b) {
 // Construction / initialisation
 // ---------------------------------------------------------------------------
 Board::Board() { init(); }
+
+void Board::loadFEN(const std::string& fen) {
+    // Clear all piece bitboards and metadata
+    for (int i = 0; i < 14; i++) pieceBB[i] = 0;
+    castleRights[0] = castleRights[1] = castleRights[2] = castleRights[3] = false;
+    enPassantSquare = -1;
+    halfMoveClock   = 0;
+    fullMoveNumber  = 1;
+    moveHistory.clear();
+
+    std::istringstream ss(fen);
+    std::string placement, activeColor, castling, epStr;
+    ss >> placement >> activeColor >> castling >> epStr;
+
+    // --- Piece placement ---
+    // FEN describes ranks 8 down to 1, files a to h.
+    // Engine square: sq = (rank-1)*8 + (7-file)  where file: a=0, h=7.
+    int rank = 8, file = 0;
+    for (char c : placement) {
+        if (c == '/') {
+            rank--;
+            file = 0;
+        } else if (c >= '1' && c <= '8') {
+            file += c - '0';
+        } else {
+            int sq = (rank - 1) * 8 + (7 - file);
+            int colorIdx, pieceEnum;
+            switch (c) {
+                case 'P': colorIdx=0; pieceEnum=Move::Pawn;   break;
+                case 'B': colorIdx=0; pieceEnum=Move::Bishop; break;
+                case 'N': colorIdx=0; pieceEnum=Move::Knight; break;
+                case 'R': colorIdx=0; pieceEnum=Move::Rook;   break;
+                case 'Q': colorIdx=0; pieceEnum=Move::Queen;  break;
+                case 'K': colorIdx=0; pieceEnum=Move::King;   break;
+                case 'p': colorIdx=7; pieceEnum=Move::Pawn;   break;
+                case 'b': colorIdx=7; pieceEnum=Move::Bishop; break;
+                case 'n': colorIdx=7; pieceEnum=Move::Knight; break;
+                case 'r': colorIdx=7; pieceEnum=Move::Rook;   break;
+                case 'q': colorIdx=7; pieceEnum=Move::Queen;  break;
+                case 'k': colorIdx=7; pieceEnum=Move::King;   break;
+                default:  colorIdx=0; pieceEnum=0;            break;
+            }
+            pieceBB[colorIdx + pieceEnum + 1] |= (1ULL << sq);
+            file++;
+        }
+    }
+
+    // Rebuild color aggregates
+    pieceBB[0] = 0; for (int i = 1; i <= 6; i++) pieceBB[0] |= pieceBB[i];
+    pieceBB[7] = 0; for (int i = 8; i <= 13; i++) pieceBB[7] |= pieceBB[i];
+    occupiedBB = pieceBB[0] | pieceBB[7];
+    emptyBB    = ~occupiedBB;
+
+    // --- Active color ---
+    whiteTurn = (activeColor == "w");
+
+    // --- Castling rights ---
+    for (char c : castling) {
+        switch (c) {
+            case 'K': castleRights[1] = true; break; // white short
+            case 'Q': castleRights[0] = true; break; // white long
+            case 'k': castleRights[3] = true; break; // black short
+            case 'q': castleRights[2] = true; break; // black long
+        }
+    }
+
+    // --- En passant ---
+    if (epStr.size() >= 2 && epStr[0] != '-') {
+        int epFile = epStr[0] - 'a';       // a=0 … h=7
+        int epRank = epStr[1] - '0';       // '1'=1 … '8'=8
+        enPassantSquare = (epRank - 1) * 8 + (7 - epFile);
+    }
+
+    // --- Halfmove clock and fullmove number (optional in FEN) ---
+    int hm = 0, fm = 1;
+    ss >> hm >> fm;
+    halfMoveClock  = hm;
+    fullMoveNumber = fm;
+}
 
 void Board::init() {
     whiteTurn        = true;
@@ -211,20 +291,37 @@ bool Board::check() const {
     return isKingInCheck(whiteTurn);
 }
 
+void Board::applyMove(const Move& m) {
+    switch (m.moveType) {
+        case Move::Quiet:          updateByMove<Move::Quiet>(m);          break;
+        case Move::Capture:        updateByMove<Move::Capture>(m);        break;
+        case Move::EnPassant:      updateByMove<Move::EnPassant>(m);      break;
+        case Move::Castle:         updateByMove<Move::Castle>(m);         break;
+        case Move::Promote:        updateByMove<Move::Promote>(m);        break;
+        case Move::PromoteCapture: updateByMove<Move::PromoteCapture>(m); break;
+    }
+}
+
 bool Board::checkMate() {
-    if (!check()) return false;
-    // TODO Phase 5: return MoveGenerator::generateMoves(*this).count == 0;
-    return false;
+    return check() && MoveGenerator::generateLegalMoves(*this).count == 0;
 }
 
 bool Board::staleMate() {
-    // TODO Phase 5: return !check() && MoveGenerator::generateMoves(*this).count == 0;
-    return false;
+    return !check() && MoveGenerator::generateLegalMoves(*this).count == 0;
 }
 
 // ---------------------------------------------------------------------------
 // Move application — specialisations
 // ---------------------------------------------------------------------------
+
+// Revoke the castle right associated with a rook starting square.
+// Only the four starting squares (h1,a1,h8,a8) matter; any other square is a no-op.
+static void revokeRookRight(bool castleRights[4], uint64_t sq) {
+    if (sq & 1ULL)          castleRights[1] = false; // h1 → white short
+    if (sq & (1ULL << 7))   castleRights[0] = false; // a1 → white long
+    if (sq & (1ULL << 56))  castleRights[3] = false; // h8 → black short
+    if (sq & (1ULL << 63))  castleRights[2] = false; // a8 → black long
+}
 
 // --- Quiet ---
 template<>
@@ -250,9 +347,7 @@ void Board::updateByMove<Move::Quiet>(Move move) {
         castleRights[2 * move.color]     = false;
         castleRights[2 * move.color + 1] = false;
     } else if (move.piece == Move::Rook) {
-        uint64_t shortRookSqs = (1ULL << 56) | 1ULL; // h1 and h8
-        int shortCastle = (int)((shortRookSqs & from) != 0);
-        castleRights[2 * move.color + shortCastle] = false;
+        revokeRookRight(castleRights, from);
     }
 
     if (move.color == Move::Black) fullMoveNumber++;
@@ -279,18 +374,12 @@ void Board::updateByMove<Move::Capture>(Move move) {
     halfMoveClock   = 0;
     enPassantSquare = -1;
 
-    if (move.cPiece == Move::Rook) {
-        uint64_t shortRookSqs = (1ULL << 56) | 1ULL;
-        int shortCastle = (int)((shortRookSqs & to) != 0);
-        castleRights[2 * move.cColor + shortCastle] = false;
-    }
+    if (move.cPiece == Move::Rook)   revokeRookRight(castleRights, to);
     if (move.piece == Move::King) {
         castleRights[2 * move.color]     = false;
         castleRights[2 * move.color + 1] = false;
     } else if (move.piece == Move::Rook) {
-        uint64_t shortRookSqs = (1ULL << 56) | 1ULL;
-        int shortCastle = (int)((shortRookSqs & from) != 0);
-        castleRights[2 * move.color + shortCastle] = false;
+        revokeRookRight(castleRights, from);
     }
 
     if (move.color == Move::Black) fullMoveNumber++;
@@ -370,6 +459,8 @@ void Board::updateByMove<Move::PromoteCapture>(Move move) {
 
     halfMoveClock   = 0;
     enPassantSquare = -1;
+
+    if (move.cPiece == Move::Rook) revokeRookRight(castleRights, to);
 
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;

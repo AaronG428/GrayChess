@@ -461,3 +461,19 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
 
     return list;
 }
+
+// ---------------------------------------------------------------------------
+// Legal move generation (Phase 5)
+// ---------------------------------------------------------------------------
+MoveList MoveGenerator::generateLegalMoves(const Board& board) {
+    MoveList pseudo = generateMoves(board);
+    MoveList legal;
+    for (int i = 0; i < pseudo.count; i++) {
+        Board copy = board;
+        copy.applyMove(pseudo.moves[i]);
+        // After the move, whiteTurn has toggled — the side that just moved is !copy.whiteTurn
+        if (!copy.isKingInCheck(!copy.whiteTurn))
+            legal.push(pseudo.moves[i]);
+    }
+    return legal;
+}

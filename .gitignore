@@ -4,3 +4,4 @@ Resources/*
 .vscode/*
 *.dSYM
 *.md
+build/*

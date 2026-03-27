@@ -10,6 +10,7 @@ add_library(engine
     src/board/Board.cpp
     src/move/MoveGenerator.cpp
     src/move/AttackTables.cpp
+    src/engine/Eval.cpp
 )
 target_include_directories(engine PUBLIC src/)
 
@@ -28,8 +29,16 @@ target_link_libraries(TestBoard engine)
 add_executable(TestMoveGen tests/TestMoveGen.cpp)
 target_link_libraries(TestMoveGen engine)
 
+add_executable(PerftTests tests/PerftTests.cpp)
+target_link_libraries(PerftTests engine)
+
+add_executable(TestEval tests/TestEval.cpp)
+target_link_libraries(TestEval engine)
+
 enable_testing()
 add_test(NAME Bits         COMMAND TestBits)
 add_test(NAME AttackTables COMMAND TestAttackTables)
 add_test(NAME Board        COMMAND TestBoard)
 add_test(NAME MoveGen      COMMAND TestMoveGen)
+add_test(NAME Perft        COMMAND PerftTests)
+add_test(NAME Eval         COMMAND TestEval)
