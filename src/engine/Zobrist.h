@@ -10,9 +10,9 @@ class Board; // forward declaration at global scope so Zobrist functions use ::B
 namespace Zobrist {
 
     // One random key per (pieceBB index 0-13, square 0-63)
-    extern uint64_t PIECE_KEYS[14][64];
+    extern uint64_t PIECE_KEYS[12][64];
 
-    // XOR'd into the hash whenever it is black's turn to move
+    // XOR'd into the hash whenever it is white's turn to move
     extern uint64_t SIDE_KEY;
 
     // Indexed by the 4-bit castle-rights word  (bit0=wLong, bit1=wShort,
@@ -31,32 +31,27 @@ namespace Zobrist {
     uint64_t compute(const Board& board);
 
     // Return the XOR delta for moving a piece (quiet move).
-    // TODO Phase 8: PIECE_KEYS[pieceIdx][from] ^ PIECE_KEYS[pieceIdx][to]
     inline uint64_t movePiece(int pieceIdx, int from, int to) {
-        (void)pieceIdx; (void)from; (void)to;
-        return 0; // TODO
+        return PIECE_KEYS[pieceIdx][from] ^ PIECE_KEYS[pieceIdx][to];
     }
 
     // Return the XOR delta for removing a piece from a square.
-    // TODO Phase 8: PIECE_KEYS[pieceIdx][sq]
     inline uint64_t removePiece(int pieceIdx, int sq) {
-        (void)pieceIdx; (void)sq;
-        return 0; // TODO
+        return PIECE_KEYS[pieceIdx][sq];
     }
 
     // Return the XOR delta for the castle-rights change old→new.
-    // TODO Phase 8: CASTLE_KEYS[oldRights] ^ CASTLE_KEYS[newRights]
     inline uint64_t castleRightsDelta(int oldRights, int newRights) {
-        (void)oldRights; (void)newRights;
-        return 0; // TODO
+        return CASTLE_KEYS[oldRights] ^ CASTLE_KEYS[newRights]; 
     }
 
     // Return the XOR delta for an en-passant file change old→new.
     // Pass -1 for "no ep square".
-    // TODO Phase 8: EP_KEYS[oldFile] ^ EP_KEYS[newFile]  (skip if -1)
-    inline uint64_t epFileDelta(int oldEpSq, int newEpSq) {
-        (void)oldEpSq; (void)newEpSq;
-        return 0; // TODO
+    uint64_t epFileDelta(int oldEpSq, int newEpSq) {
+        uint64_t delta = 0;
+        if (oldEpSq != -1) delta ^= EP_KEYS[oldEpSq%8];
+        if (newEpSq != -1) delta ^= EP_KEYS[newEpSq%8];
+        return delta;
     }
 
 } // namespace Zobrist

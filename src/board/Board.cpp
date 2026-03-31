@@ -2,6 +2,7 @@
 #include "../move/AttackTables.h"
 #include "../move/MoveGenerator.h"
 #include "../utils/Bits.h"
+#include "../engine/Zobrist.h"
 #include <iostream>
 
 // ---------------------------------------------------------------------------
