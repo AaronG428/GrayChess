@@ -10,7 +10,8 @@ class Board; // forward declaration at global scope so Zobrist functions use ::B
 namespace Zobrist {
 
     // One random key per (pieceBB index 0-13, square 0-63)
-    extern uint64_t PIECE_KEYS[12][64];
+    // Leave PIECE_KEYS[0] and [7] empty, not needed for hashing but useful to keep for indexing
+    extern uint64_t PIECE_KEYS[14][64];
 
     // XOR'd into the hash whenever it is white's turn to move
     extern uint64_t SIDE_KEY;
@@ -27,7 +28,7 @@ namespace Zobrist {
     void init();
 
     // Return the hash for a board built from scratch (used by loadFEN / init).
-    // TODO Phase 8: XOR all occupied squares + side + castle + ep
+
     uint64_t compute(const Board& board);
 
     // Return the XOR delta for moving a piece (quiet move).
@@ -47,11 +48,15 @@ namespace Zobrist {
 
     // Return the XOR delta for an en-passant file change old→new.
     // Pass -1 for "no ep square".
-    uint64_t epFileDelta(int oldEpSq, int newEpSq) {
+    inline uint64_t epFileDelta(int oldEpSq, int newEpSq) {
         uint64_t delta = 0;
         if (oldEpSq != -1) delta ^= EP_KEYS[oldEpSq%8];
         if (newEpSq != -1) delta ^= EP_KEYS[newEpSq%8];
         return delta;
+    }
+
+    inline uint64_t switchSide() {
+        return SIDE_KEY;
     }
 
 } // namespace Zobrist

@@ -114,6 +114,9 @@ void Board::loadFEN(const std::string& fen) {
     ss >> hm >> fm;
     halfMoveClock  = hm;
     fullMoveNumber = fm;
+
+    // --- Zobrist hash ---
+    hash = Zobrist::compute(*this);
 }
 
 void Board::init() {
@@ -141,6 +144,8 @@ void Board::init() {
 
     occupiedBB = pieceBB[0] | pieceBB[7];
     emptyBB    = ~occupiedBB;
+
+    hash = Zobrist::compute(*this);
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +334,13 @@ template<>
 void Board::updateByMove<Move::Quiet>(Move move) {
     savePrevState(move, *this);
 
+    int oldRights = (castleRights[0] << 0)                                                                                         
+                | (castleRights[1] << 1)                                                                          
+                | (castleRights[2] << 2)                                                                                         
+                | (castleRights[3] << 3); 
+
+    int oldEnPassantSquare = enPassantSquare;
+
     auto [from, to, fromTo, colorIdx, pieceIdx] = moveCharacteristics(move);
     pieceBB[pieceIdx] ^= fromTo;
     pieceBB[colorIdx] ^= fromTo;
@@ -336,6 +348,7 @@ void Board::updateByMove<Move::Quiet>(Move move) {
     emptyBB           ^= fromTo;
 
     halfMoveClock = (move.piece == Move::Pawn) ? 0 : halfMoveClock + 1;
+
 
     enPassantSquare = -1;
     if (move.piece == Move::Pawn) {
@@ -354,12 +367,29 @@ void Board::updateByMove<Move::Quiet>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    int newRights = (castleRights[0] << 0)                                                                                         
+                | (castleRights[1] << 1)                                                                          
+                | (castleRights[2] << 2)                                                                                         
+                | (castleRights[3] << 3); 
+    
+    hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+    hash ^= Zobrist::castleRightsDelta(oldRights, newRights);
+    hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }
 
 // --- Capture ---
 template<>
 void Board::updateByMove<Move::Capture>(Move move) {
     savePrevState(move, *this);
+
+    int oldRights = (castleRights[0] << 0)                                                                                         
+            | (castleRights[1] << 1)                                                                          
+            | (castleRights[2] << 2)                                                                                         
+            | (castleRights[3] << 3);  
+
+    int oldEnPassantSquare = enPassantSquare;
 
     auto [from, to, fromTo, colorIdx, pieceIdx] = moveCharacteristics(move);
     int enemyColorIdx    = 7 - colorIdx;
@@ -386,6 +416,17 @@ void Board::updateByMove<Move::Capture>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    int newRights = (castleRights[0] << 0)                                                                                         
+            | (castleRights[1] << 1)                                                                          
+            | (castleRights[2] << 2)                                                                                         
+            | (castleRights[3] << 3); 
+    
+    hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+    hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
+    hash ^= Zobrist::castleRightsDelta(oldRights, newRights);
+    hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }
 
 // --- En passant ---
@@ -396,6 +437,9 @@ void Board::updateByMove<Move::Capture>(Move move) {
 template<>
 void Board::updateByMove<Move::EnPassant>(Move move) {
     savePrevState(move, *this);
+
+
+    int oldEnPassantSquare = enPassantSquare;
 
     auto [from, to, fromTo, colorIdx, pieceIdx] = moveCharacteristics(move);
     int enemyColorIdx = 7 - colorIdx;
@@ -416,12 +460,19 @@ void Board::updateByMove<Move::EnPassant>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+    hash ^= Zobrist::removePiece(capturedPawnIdx, capturedBit);
+    hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }
 
 // --- Promotion ---
 template<>
 void Board::updateByMove<Move::Promote>(Move move) {
     savePrevState(move, *this);
+
+    int oldEnPassantSquare = enPassantSquare;
 
     auto [from, to, fromTo, colorIdx, pieceIdx] = moveCharacteristics(move);
     int newPieceIdx = colorIdx + move.newPiece + 1;
@@ -438,12 +489,20 @@ void Board::updateByMove<Move::Promote>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+    hash ^= Zobrist::removePiece(pieceIdx, move.to);
+    hash ^= Zobrist::removePiece(newPieceIdx, move.to);
+    hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }
 
 // --- Promote-capture ---
 template<>
 void Board::updateByMove<Move::PromoteCapture>(Move move) {
     savePrevState(move, *this);
+
+    int oldEnPassantSquare = enPassantSquare;
 
     auto [from, to, fromTo, colorIdx, pieceIdx] = moveCharacteristics(move);
     int newPieceIdx      = colorIdx + move.newPiece + 1;
@@ -466,6 +525,13 @@ void Board::updateByMove<Move::PromoteCapture>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+    hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
+    hash ^= Zobrist::removePiece(pieceIdx, move.to);
+    hash ^= Zobrist::removePiece(newPieceIdx, move.to);
+    hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }
 
 // --- Castle ---
@@ -477,6 +543,13 @@ void Board::updateByMove<Move::PromoteCapture>(Move move) {
 template<>
 void Board::updateByMove<Move::Castle>(Move move) {
     savePrevState(move, *this);
+
+    int oldEnPassantSquare = enPassantSquare;
+
+    int oldRights = (castleRights[0] << 0)                                                                                         
+            | (castleRights[1] << 1)                                                                          
+            | (castleRights[2] << 2)                                                                                         
+            | (castleRights[3] << 3);      
 
     int colorIdx = 7 * move.color;
     int kingIdx  = colorIdx + Move::King + 1;
@@ -511,11 +584,23 @@ void Board::updateByMove<Move::Castle>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    int newRights = (castleRights[0] << 0)                                                                                         
+        | (castleRights[1] << 1)                                                                          
+        | (castleRights[2] << 2)                                                                                         
+        | (castleRights[3] << 3); 
+
+    hash ^= Zobrist::movePiece(kingIdx, kingFrom, kingTo);
+    hash ^= Zobrist::movePiece(rookIdx, rookFrom, rookTo);
+    hash ^= Zobrist::castleRightsDelta(oldRights, newRights);
+    hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }
 
 // ---------------------------------------------------------------------------
 // Unmake move
 // ---------------------------------------------------------------------------
+//TODO add reverse zobrist steps when unmaking a move
 void Board::unmakeMove() {
     if (moveHistory.empty()) return;
 
