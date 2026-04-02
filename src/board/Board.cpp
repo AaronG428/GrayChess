@@ -355,7 +355,7 @@ void Board::updateByMove<Move::Quiet>(Move move) {
     enPassantSquare = -1;
     if (move.piece == Move::Pawn) {
         int delta = move.to - move.from;
-        //TODO check if there is an enemy pawn in to+1 or to-1
+        //check if there is an enemy pawn in to+1 or to-1
         int enemyColorIdx    = 7 - colorIdx;
         uint64_t enemyPawns = pieceBB[enemyColorIdx+1];
         bool enemyPawnPresence = enemyPawns & (
@@ -618,14 +618,29 @@ void Board::unmakeMove() {
     Move move = moveHistory.back();
     moveHistory.pop_back();
 
+    int oldRights = (castleRights[0] << 0)                                                                                         
+            | (castleRights[1] << 1)                                                                          
+            | (castleRights[2] << 2)                                                                                         
+            | (castleRights[3] << 3); 
+    int oldEPSquare = enPassantSquare;
+
+    
+
+
     // Restore metadata
     whiteTurn       = !whiteTurn;
     enPassantSquare = move.prevEnPassantSquare;
     halfMoveClock   = move.prevHalfMoveClock;
+
+
     castleRights[0] = move.prevCastleRights[0];
     castleRights[1] = move.prevCastleRights[1];
     castleRights[2] = move.prevCastleRights[2];
     castleRights[3] = move.prevCastleRights[3];
+    int newRights = (castleRights[0] << 0)                                                                                         
+        | (castleRights[1] << 1)                                                                          
+        | (castleRights[2] << 2)                                                                                         
+        | (castleRights[3] << 3); 
     if (move.color == Move::Black) fullMoveNumber--;
 
     auto [from, to, fromTo, colorIdx, pieceIdx] = moveCharacteristics(move);
@@ -636,6 +651,8 @@ void Board::unmakeMove() {
             pieceBB[colorIdx] ^= fromTo;
             occupiedBB        ^= fromTo;
             emptyBB           ^= fromTo;
+
+            hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
             break;
 
         case Move::Capture: {
@@ -647,6 +664,9 @@ void Board::unmakeMove() {
             pieceBB[enemyColorIdx]    ^= to;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
+
+            hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+            hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
             break;
         }
 
@@ -661,6 +681,9 @@ void Board::unmakeMove() {
             pieceBB[enemyColorIdx]   ^= capturedBB;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
+
+            hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+            hash ^= Zobrist::removePiece(capturedPawnIdx, capturedBit);
             break;
         }
 
@@ -671,6 +694,9 @@ void Board::unmakeMove() {
             pieceBB[colorIdx]    ^= fromTo;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
+            hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+            hash ^= Zobrist::removePiece(pieceIdx, move.to);
+            hash ^= Zobrist::removePiece(newPieceIdx, move.to);
             break;
         }
 
@@ -685,6 +711,11 @@ void Board::unmakeMove() {
             pieceBB[enemyColorIdx]    ^= to;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
+
+            hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
+            hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
+            hash ^= Zobrist::removePiece(pieceIdx, move.to);
+            hash ^= Zobrist::removePiece(newPieceIdx, move.to);
             break;
         }
 
@@ -709,7 +740,13 @@ void Board::unmakeMove() {
             pieceBB[colorIdx] ^= allFromTo;
             occupiedBB        ^= allFromTo;
             emptyBB           ^= allFromTo;
+
+            hash ^= Zobrist::movePiece(kingIdx, kingFrom, kingTo);
+            hash ^= Zobrist::movePiece(rookIdx, rookFrom, rookTo);
             break;
         }
     }
+    hash ^= Zobrist::castleRightsDelta(oldRights, newRights);
+    hash ^= Zobrist::epFileDelta(oldEPSquare, enPassantSquare);
+    hash ^= Zobrist::switchSide();
 }

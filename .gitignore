@@ -6,3 +6,4 @@ Resources/*
 *.md
 build/*
 legacy/*
+build_debug/
