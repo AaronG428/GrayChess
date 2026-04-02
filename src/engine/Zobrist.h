@@ -20,7 +20,7 @@ namespace Zobrist {
     // bit2=bLong, bit3=bShort)
     extern uint64_t CASTLE_KEYS[16];
 
-    // Indexed by en-passant file (0=a … 7=h); use 0 when there is no ep square
+    // Indexed by en-passant file (0=h … 7=a); use 0 when there is no ep square
     extern uint64_t EP_KEYS[8];
 
     // Seed all key arrays with pseudo-random values.

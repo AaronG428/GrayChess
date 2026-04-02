@@ -5,6 +5,8 @@
 #include "../engine/Zobrist.h"
 #include <iostream>
 
+using namespace std;
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -353,8 +355,17 @@ void Board::updateByMove<Move::Quiet>(Move move) {
     enPassantSquare = -1;
     if (move.piece == Move::Pawn) {
         int delta = move.to - move.from;
-        if (delta == 16 || delta == -16)
+        //TODO check if there is an enemy pawn in to+1 or to-1
+        int enemyColorIdx    = 7 - colorIdx;
+        uint64_t enemyPawns = pieceBB[enemyColorIdx+1];
+        bool enemyPawnPresence = enemyPawns & (
+            (1ULL << (move.to+1))
+            |(1ULL << (move.to-1)));
+
+        if ((delta == 16 || delta == -16) && enemyPawnPresence){
             enPassantSquare = (move.from + move.to) / 2;
+            // cout << "Setting epsquare: " << dec << enPassantSquare << endl;
+        }
     }
 
     if (move.piece == Move::King) {
