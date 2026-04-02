@@ -13,6 +13,7 @@ add_library(engine
     src/engine/Eval.cpp
     src/engine/Zobrist.cpp
     src/engine/TranspositionTable.cpp
+    src/engine/Search.cpp
 )
 target_include_directories(engine PUBLIC src/)
 
@@ -52,3 +53,7 @@ add_test(NAME Perft               COMMAND PerftTests)
 add_test(NAME Eval                COMMAND TestEval)
 add_test(NAME Zobrist             COMMAND TestZobrist)
 add_test(NAME TranspositionTable  COMMAND TestTranspositionTable)
+
+add_executable(TestSearch tests/TestSearch.cpp)
+target_link_libraries(TestSearch engine)
+add_test(NAME Search COMMAND TestSearch)
