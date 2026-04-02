@@ -31,16 +31,13 @@ public:
 
     // Look up a position by its Zobrist hash.
     // Returns nullptr if the entry is absent or belongs to a different position.
-    // TODO Phase 8: implement lookup + hash collision check
     TTEntry* probe(uint64_t hash);
 
     // Store a result for a position.
     // Replaces the existing entry if depth >= stored depth.
-    // TODO Phase 8: implement store + replacement policy
     void store(uint64_t hash, int score, int depth, NodeType type, const Move& bestMove);
 
     // Wipe all entries (call on ucinewgame).
-    // TODO Phase 8: zero the table
     void clear();
 
     // Return the number of entries the table was sized for.
