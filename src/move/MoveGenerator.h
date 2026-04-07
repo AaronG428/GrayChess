@@ -13,4 +13,8 @@ public:
 
     // Generate captures only — used by quiescence search in Phase 9.
     static MoveList generateCaptures(const Board& board);
+
+    static MoveList generateLegalCaptures(const Board& board);
+
+    static void MVVLVA(MoveList& movelist);
 };
