@@ -20,6 +20,7 @@ void UCI::loop() {
         if      (cmd == "uci")        handleUci();
         else if (cmd == "isready")    handleIsReady();
         else if (cmd == "ucinewgame") handleUciNewGame();
+        else if (cmd == "setoption")  handleSetOption(ss);
         else if (cmd == "position")   handlePosition(ss);
         else if (cmd == "go")         handleGo(ss);
         else if (cmd == "stop")       handleStop();
@@ -33,7 +34,18 @@ void UCI::loop() {
 void UCI::handleUci() {
     std::cout << "id name GrayChess\n"
               << "id author GrayChess\n"
+              << "option name MultiPV type spin default 1 min 1 max 10\n"
               << "uciok\n" << std::flush;
+}
+
+void UCI::handleSetOption(std::istringstream& ss) {
+    std::string token, name, value;
+    if (!(ss >> token) || token != "name") return;
+    ss >> name;
+    if (!(ss >> token) || token != "value") return;
+    ss >> value;
+    if (name == "MultiPV")
+        search_.setMultiPV(std::stoi(value));
 }
 
 void UCI::handleIsReady() {
@@ -44,10 +56,13 @@ void UCI::handleUciNewGame() {
     if (searchThread_.joinable()) searchThread_.join();
     board_.init();
     tt_.clear();
+    gameHashes_.clear();
 }
 
 void UCI::handlePosition(std::istringstream& ss) {
     if (searchThread_.joinable()) searchThread_.join();
+
+    gameHashes_.clear();
 
     std::string token;
     ss >> token;
@@ -69,8 +84,10 @@ void UCI::handlePosition(std::istringstream& ss) {
     }
 
     if (foundMoves) {
-        while (ss >> token)
+        while (ss >> token) {
+            gameHashes_.push_back(board_.hash);
             board_.applyMove(parseMoveUCI(token));
+        }
     }
 }
 
@@ -94,6 +111,7 @@ void UCI::handleGo(std::istringstream& ss) {
     }
 
     search_.resetStop();
+    search_.setGameHistory(gameHashes_);
 
     if (!hasDepth) {
         long allocatedMs = 0;
@@ -108,14 +126,16 @@ void UCI::handleGo(std::istringstream& ss) {
     }
 
     searchThread_ = std::thread([this, depth]() {
-        auto cb = [this](int d, int score, const Move& best) {
+        auto cb = [this](int multipv, int d, int score,
+                         const std::vector<Move>& pv) {
             long     ms    = search_.elapsedMs();
             uint64_t nodes = search_.nodes();
             uint64_t nps   = ms > 0 ? nodes * 1000ULL / ms : 0;
 
-            // Detect mate scores (MATE_VAL = 900000, threshold at half).
             bool isMate = std::abs(score) > 450'000;
-            std::cout << "info depth " << d << " score ";
+            std::cout << "info multipv " << multipv
+                      << " depth "       << d
+                      << " score ";
             if (isMate) {
                 int plies = 900'000 - std::abs(score);
                 int moves = (plies + 1) / 2;
@@ -127,7 +147,10 @@ void UCI::handleGo(std::istringstream& ss) {
             std::cout << " nodes " << nodes
                       << " nps "   << nps
                       << " time "  << ms
-                      << " pv "    << UCI::moveToUCI(best) << "\n" << std::flush;
+                      << " pv";
+            for (const Move& m : pv)
+                std::cout << " " << UCI::moveToUCI(m);
+            std::cout << "\n" << std::flush;
         };
 
         Move best = search_.findBestMove(board_, depth, cb);

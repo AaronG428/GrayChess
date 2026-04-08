@@ -6,6 +6,7 @@
 #include <chrono>
 #include <functional>
 #include <unordered_map>
+#include <vector>
 
 using namespace std;
 
@@ -16,11 +17,12 @@ public:
 
     explicit Search(TranspositionTable& tt);
 
-    // Called after each completed depth: (depth, score, bestMove).
-    using InfoCallback = std::function<void(int, int, const Move&)>;
+    // Called after each completed depth:
+    //   (multipv index, depth, score, pv line as move list)
+    using InfoCallback = std::function<void(int, int, int, const std::vector<Move>&)>;
 
     // Iterative deepening — returns best move found at maxDepth.
-    // If cb is provided it is called after each completed depth.
+    // If cb is provided it is called after each completed depth for each PV.
     Move findBestMove(Board& board, int maxDepth, InfoCallback cb = nullptr);
 
     // Exposed for unit testing.
@@ -36,6 +38,12 @@ public:
         deadline_ = std::chrono::steady_clock::now()
                   + std::chrono::milliseconds(ms);
     }
+    void setMultiPV(int n) { multiPV_ = std::max(1, n); }
+    void setGameHistory(const std::vector<uint64_t>& h) { hashHistory_ = h; }
+
+    // Null move pruning reduction depth (R). Set to 0 to disable.
+    // Exposed so tests can toggle it on/off without rebuilding.
+    void setNullMoveR(int r) { nullMoveR_ = r; }
 
     // Search statistics — read from UCI info callback.
     uint64_t nodes() const { return nodes_; }
@@ -53,10 +61,20 @@ public:
 private:
     TranspositionTable& tt_;
     unordered_map<Move::MoveEnum, int> moveTypeMap;
+    int multiPV_  = 1;
+    int nullMoveR_ = 0; // stub: disabled until implemented
 
     std::atomic<bool> stop_{false};
     std::chrono::steady_clock::time_point searchStart_{ std::chrono::steady_clock::now() };
     std::chrono::steady_clock::time_point deadline_{ std::chrono::steady_clock::time_point::max() };
     uint64_t nodes_ = 0;
-        
+    std::vector<uint64_t> hashHistory_;
+
+    // Root-level search with a list of (from,to) moves to exclude.
+    // Used to extract additional PV lines without re-searching the first.
+    int rootSearch(Board& board, int depth,
+                   const std::vector<std::pair<int,int>>& excluded);
+
+    // Walk the TT from the current position to extract the best line.
+    std::vector<Move> extractPV(Board board, int maxDepth) const;
 };

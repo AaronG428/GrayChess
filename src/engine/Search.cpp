@@ -19,30 +19,101 @@ static constexpr int INF      = 1'000'000;
 static constexpr int MATE_VAL = 900'000;
 
 Move Search::findBestMove(Board& board, int maxDepth, InfoCallback cb) {
-    Move best{};
+    Move overallBest{};
     bool hasBest = false;
 
     for (int depth = 1; depth <= maxDepth && !stop_; depth++) {
-        int score = negamax(board, depth, -INF, INF);
-        // Only save the result if this depth completed without being stopped.
-        if (!stop_) {
-            TTEntry* e = tt_.probe(board.hash);
-            if (e) {
-                best    = e->bestMove;
-                hasBest = true;
-                if (cb) cb(depth, score, best);
+        // For each PV line k, run a root search that excludes moves already
+        // claimed by lines 1..k-1.
+        std::vector<std::pair<int,int>> excluded;
+        std::vector<std::pair<int, std::vector<Move>>> pvLines;
+
+        for (int k = 0; k < multiPV_ && !stop_; k++) {
+            int score = rootSearch(board, depth, excluded);
+            if (!stop_) {
+                TTEntry* e = tt_.probe(board.hash);
+                if (e) {
+                    excluded.push_back({e->bestMove.from, e->bestMove.to});
+                    pvLines.push_back({score, extractPV(board, depth)});
+                    if (k == 0) { overallBest = e->bestMove; hasBest = true; }
+                }
             }
+        }
+
+        if (!stop_ && cb) {
+            for (int k = 0; k < (int)pvLines.size(); k++)
+                cb(k + 1, depth, pvLines[k].first, pvLines[k].second);
         }
     }
 
     if (!hasBest) {
-        // Stopped before depth 1 finished — fall back to TT or first legal move.
         TTEntry* e = tt_.probe(board.hash);
         if (e) return e->bestMove;
         MoveList moves = MoveGenerator::generateLegalMoves(board);
         if (moves.count > 0) return moves.moves[0];
     }
-    return best;
+    return overallBest;
+}
+
+int Search::rootSearch(Board& board, int depth,
+                       const std::vector<std::pair<int,int>>& excluded) {
+    MoveList moves = MoveGenerator::generateLegalMoves(board);
+    if (moves.count == 0) return board.check() ? -MATE_VAL : 0;
+
+    TTEntry* e = tt_.probe(board.hash);
+    int ttFrom = e ? e->bestMove.from : -1;
+    int ttTo   = e ? e->bestMove.to   : -1;
+    orderMoves(moves, ttFrom, ttTo);
+
+    int  alpha = -INF;
+    Move bestMove{};
+    bool updatedAlpha = false;
+
+    for (int i = 0; i < moves.count; i++) {
+        const Move& m = moves.moves[i];
+        bool skip = false;
+        for (auto& ex : excluded)
+            if (m.from == ex.first && m.to == ex.second) { skip = true; break; }
+        if (skip) continue;
+
+        board.applyMove(m);
+        int score = -negamax(board, depth - 1, -INF, -alpha, 1);
+        board.unmakeMove();
+
+        if (stop_) break;
+        if (score > alpha) {
+            alpha       = score;
+            bestMove    = m;
+            updatedAlpha = true;
+        }
+    }
+
+    if (!stop_ && updatedAlpha)
+        tt_.store(board.hash, alpha, depth, NodeType::Exact, bestMove);
+
+    return alpha;
+}
+
+std::vector<Move> Search::extractPV(Board board, int maxDepth) const {
+    std::vector<Move> pv;
+    for (int i = 0; i < maxDepth; i++) {
+        TTEntry* e = tt_.probe(board.hash);
+        if (!e) break;
+        Move m = e->bestMove;
+        // Verify the move is still legal (TT entries can be stale).
+        MoveList legal = MoveGenerator::generateLegalMoves(board);
+        bool found = false;
+        for (int j = 0; j < legal.count; j++) {
+            if (legal.moves[j].from == m.from && legal.moves[j].to == m.to) {
+                pv.push_back(m);
+                board.applyMove(m);
+                found = true;
+                break;
+            }
+        }
+        if (!found) break;
+    }
+    return pv;
 }
 
 
@@ -69,6 +140,18 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
         std::chrono::steady_clock::now() >= deadline_) {
         stop_ = true;
         return 0;
+    }
+
+    // 50-move rule.
+    if (board.halfMoveClock >= 100) return 0;
+
+    // Threefold repetition — count prior occurrences of this position.
+    // On the second prior occurrence (third total) it's a draw.
+    {
+        int reps = 0;
+        for (uint64_t h : hashHistory_)
+            if (h == board.hash) reps++;
+        if (reps >= 2) return 0;
     }
 
     uint64_t hash = board.hash;
@@ -119,7 +202,26 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
         return quiesce(board, alpha, beta);
     }
 
-    
+    // ── Null move pruning (stub) ─────────────────────────────────────────────
+    // Idea: if we skip our move ("null move") and the opponent still can't beat
+    // beta at reduced depth, the position is so good we can prune this branch.
+    //
+    // Conditions for a safe null move:
+    //   1. nullMoveR_ > 0 (not disabled)
+    //   2. depth > nullMoveR_ (enough depth left after reduction)
+    //   3. not in check (null move in check is illegal)
+    //   4. not in a zugzwang-prone position (i.e. we have non-pawn, non-king
+    //      pieces — bare kings/pawns can be zugzwang)
+    //
+    // TODO: implement null move.
+    // Steps when implementing:
+    //   a. Toggle side to move (board.whiteTurn = !board.whiteTurn; + XOR SIDE_KEY)
+    //   b. Clear en-passant square for the null move
+    //   c. score = -negamax(board, depth - 1 - nullMoveR_, -beta, -beta + 1, ply + 1)
+    //   d. Restore board state (undo the side toggle + ep clear)
+    //   e. if score >= beta  →  return beta  (cutoff)
+    // ────────────────────────────────────────────────────────────────────────
+
     // test code
     // for(int i=0; i<moves.count; i++){
     //     Move m = moves.moves[i];
@@ -140,11 +242,11 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     // Move* bestMove  
     for(int i=0; i<moves.count; i++){
         Move move = moves.moves[i];
+        hashHistory_.push_back(board.hash);
         board.applyMove(move);
-        // std:://cout << "pre negamax" << std::endl;
         int score = -negamax(board, depth-1, -beta, -alpha, ply+1);
-        // std:://cout << "post negamax" << std::endl;
         board.unmakeMove();
+        hashHistory_.pop_back();
 
         if (score >= beta){
             tt_.store(hash, beta, depth, NodeType::LowerBound, move);

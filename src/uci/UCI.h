@@ -20,14 +20,16 @@ public:
     static std::string moveToUCI(const Move& m);
 
 private:
-    Board              board_;
-    TranspositionTable tt_;
-    Search             search_;
-    std::thread        searchThread_;
+    Board                    board_;
+    TranspositionTable       tt_;
+    Search                   search_;
+    std::thread              searchThread_;
+    std::vector<uint64_t>    gameHashes_;
 
     void handleUci();
     void handleIsReady();
     void handleUciNewGame();
+    void handleSetOption(std::istringstream& ss);
     void handleGo(std::istringstream& ss);
     void handleStop();
 };
