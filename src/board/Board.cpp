@@ -172,18 +172,18 @@ void Board::addPieces(uint64_t bb, std::string& boardString, char c) const {
 
 std::string Board::constructBoardString() const {
     std::string s(64, ' ');
-    addPieces(pieceBB[1],  s, 'p');  // white pieces — lowercase
-    addPieces(pieceBB[2],  s, 'b');
-    addPieces(pieceBB[3],  s, 'n');
-    addPieces(pieceBB[4],  s, 'r');
-    addPieces(pieceBB[5],  s, 'q');
-    addPieces(pieceBB[6],  s, 'k');
-    addPieces(pieceBB[8],  s, 'P');  // black pieces — uppercase
-    addPieces(pieceBB[9],  s, 'B');
-    addPieces(pieceBB[10], s, 'N');
-    addPieces(pieceBB[11], s, 'R');
-    addPieces(pieceBB[12], s, 'Q');
-    addPieces(pieceBB[13], s, 'K');
+    addPieces(pieceBB[1],  s, 'P');  // white pieces — lowercase
+    addPieces(pieceBB[2],  s, 'B');
+    addPieces(pieceBB[3],  s, 'N');
+    addPieces(pieceBB[4],  s, 'R');
+    addPieces(pieceBB[5],  s, 'Q');
+    addPieces(pieceBB[6],  s, 'K');
+    addPieces(pieceBB[8],  s, 'p');  // black pieces — uppercase
+    addPieces(pieceBB[9],  s, 'b');
+    addPieces(pieceBB[10], s, 'n');
+    addPieces(pieceBB[11], s, 'r');
+    addPieces(pieceBB[12], s, 'q');
+    addPieces(pieceBB[13], s, 'k');
     return s;
 }
 

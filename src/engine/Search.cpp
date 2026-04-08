@@ -49,7 +49,7 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     uint64_t hash = board.hash;
     TTEntry* entry = tt_.probe(hash);
     int ttBestFrom = -1, ttBestTo = -1;
-    Move* bestMove = nullptr;
+    Move bestMove;
 
     // If already searched this position at greater depth
     if ((entry != nullptr) &&  (entry->depth >= depth)){
@@ -73,15 +73,28 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
 
         ttBestFrom = entry->bestMove.from;
         ttBestTo = entry->bestMove.to;
-        bestMove = &(entry->bestMove);
+        bestMove = (entry->bestMove);
 
+    }
+
+    MoveList moves = MoveGenerator::generateLegalMoves(board);
+
+
+    if (moves.count == 0){
+        //Checkmate
+        //Add ply so shallower mates are better for opponent
+        if(board.check()){
+            return -(MATE_VAL-ply);
+        }
+        //Stalemate
+        return 0;
     }
 
     if(depth == 0){
         return quiesce(board, alpha, beta);
     }
 
-    MoveList moves = MoveGenerator::generateLegalMoves(board);
+    
     // test code
     // for(int i=0; i<moves.count; i++){
     //     Move m = moves.moves[i];
@@ -94,15 +107,7 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
 
     // end test code
     // If no legal moves
-    if (moves.count == 0){
-        //Checkmate
-        //Add ply so shallower mates are better for opponent
-        if(board.check()){
-            return -(MATE_VAL-ply);
-        }
-        //Stalemate
-        return 0;
-    }
+
     // std:://cout << "moves length: " << moves.count << std::endl;
     orderMoves(moves, ttBestFrom, ttBestTo);
     // std:://cout << "ordered moves:" << moves.count << std::endl;
@@ -122,12 +127,12 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
         } 
         if (score > alpha){
             alpha = score;
-            bestMove = &move;
+            bestMove = move;
             updatedAlpha = true;
         }
     }
     if (updatedAlpha){
-        tt_.store(hash, alpha, depth, NodeType::Exact, *bestMove);
+        tt_.store(hash, alpha, depth, NodeType::Exact, bestMove);
 
     }else{
         tt_.store(hash, alpha, depth, NodeType::UpperBound, moves.moves[0]);
@@ -163,7 +168,7 @@ int Search::quiesce(Board& board, int alpha, int beta) {
     //     // std:://cout << "move from:" << m.from << std::endl;
     //     // std:://cout << "move piece:" << m.piece << std::endl;
     // }
-
+    
     // end test code
     if(captures.count > 0){
         orderMoves(captures, -1, -1);
