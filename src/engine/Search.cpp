@@ -1,14 +1,24 @@
 #include "Search.h"
 #include "../move/MoveGenerator.h"
 #include "Eval.h"
+#include <iostream>
 
-Search::Search(TranspositionTable& tt) : tt_(tt) {}
+Search::Search(TranspositionTable& tt) : tt_(tt) {
+    moveTypeMap = {
+        {Move::PromoteCapture, 5},
+        {Move::Capture,        4},
+        {Move::EnPassant,      3},
+        {Move::Promote,        2},
+        {Move::Castle,         1},
+        {Move::Quiet,          0}}; 
+
+    // std::cout << "moveTypeMap: " << moveTypeMap.at(Move::PromoteCapture) << std::endl;
+}
 
 static constexpr int INF      = 1'000'000;
 static constexpr int MATE_VAL = 900'000;
 
 Move Search::findBestMove(Board& board, int maxDepth) {
-    Move best;
     for (int depth = 1; depth <= maxDepth; depth++) {
         negamax(board, depth, -INF, INF);
         // best move is the TT entry for the root position after each iteration
@@ -35,13 +45,95 @@ Move Search::findBestMove(Board& board, int maxDepth) {
     //  (depth from root, not remaining depth).
 int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     // TODO Phase 9: TT probe, terminal detection, move ordering, recursive search
-    (void)board; (void)depth; (void)alpha; (void)beta; (void)ply;
+    // std::cout << "depth: " << depth << std::endl;
     uint64_t hash = board.hash;
-    TTEntry* position = tt_.probe(hash);
-    // if (position != nullptr){
-    //     if (position->depth )
+    TTEntry* entry = tt_.probe(hash);
+    int ttBestFrom = -1, ttBestTo = -1;
+    Move* bestMove = nullptr;
+
+    // If already searched this position at greater depth
+    if ((entry != nullptr) &&  (entry->depth >= depth)){
+
+        // true minimax value, always usable
+        if (entry->type == NodeType::Exact){
+            return entry->score;
+        }
+
+        // A move here caused a beta cutoff in a previous search.
+        // The true value is >= entry.score, so we can raise alpha.
+        if (entry->type == NodeType::LowerBound){
+            alpha = max(alpha, entry->score);
+        }
+        
+        // Every move here failed low in a previous search.
+        // The true value is <= entry.score, so we can lower beta.
+        if (entry->type == NodeType::UpperBound){
+            beta = min(beta, entry->score);
+        }
+
+        ttBestFrom = entry->bestMove.from;
+        ttBestTo = entry->bestMove.to;
+        bestMove = &(entry->bestMove);
+
+    }
+
+    if(depth == 0){
+        return quiesce(board, alpha, beta);
+    }
+
+    MoveList moves = MoveGenerator::generateLegalMoves(board);
+    // test code
+    // for(int i=0; i<moves.count; i++){
+    //     Move m = moves.moves[i];
+    //     // std::cout << "moveType:" << m.moveType << std::endl;
+    //     // std::cout << "move to:" << m.to << std::endl;
+    //     // std::cout << "move from:" << m.from << std::endl;
+    //     // std::cout << "move piece:" << m.piece << std::endl;
     // }
-    return 0;
+    // std::cout << "-----------End move list----------" << std::endl;
+
+    // end test code
+    // If no legal moves
+    if (moves.count == 0){
+        //Checkmate
+        //Add ply so shallower mates are better for opponent
+        if(board.check()){
+            return -(MATE_VAL-ply);
+        }
+        //Stalemate
+        return 0;
+    }
+    // std::cout << "moves length: " << moves.count << std::endl;
+    orderMoves(moves, ttBestFrom, ttBestTo);
+    // std::cout << "ordered moves:" << moves.count << std::endl;
+    bool updatedAlpha = false;
+    // Move* bestMove  
+    for(int i=0; i<moves.count; i++){
+        Move move = moves.moves[i];
+        board.applyMove(move);
+        // std::cout << "pre negamax" << std::endl;
+        int score = -negamax(board, depth-1, -beta, -alpha, ply+1);
+        // std::cout << "post negamax" << std::endl;
+        board.unmakeMove();
+
+        if (score >= beta){
+            tt_.store(hash, beta, depth, NodeType::LowerBound, move);
+            return beta;
+        } 
+        if (score > alpha){
+            alpha = score;
+            bestMove = &move;
+            updatedAlpha = true;
+        }
+    }
+    if (updatedAlpha){
+        tt_.store(hash, alpha, depth, NodeType::Exact, *bestMove);
+
+    }else{
+        tt_.store(hash, alpha, depth, NodeType::UpperBound, moves.moves[0]);
+    }
+    
+    return alpha;
 }
 
 
@@ -64,24 +156,64 @@ int Search::quiesce(Board& board, int alpha, int beta) {
     if (standPat > alpha) alpha = standPat;
 
     MoveList captures = MoveGenerator::generateLegalCaptures(board);
-    MoveGenerator::MVVLVA(captures);
-    for (Move capture : captures.moves){
-        board.applyMove(capture);
-        int score = -quiesce(board, -beta, -alpha);
-        board.unmakeMove();
-        if (score >= beta) return beta;
-        if (score > alpha) alpha = score;
+    // test code
+    // for (Move m:captures.moves){
+    //     // std::cout << "moveType:" << m.moveType << std::endl;
+    //     // std::cout << "move to:" << m.to << std::endl;
+    //     // std::cout << "move from:" << m.from << std::endl;
+    //     // std::cout << "move piece:" << m.piece << std::endl;
+    // }
+
+    // end test code
+    if(captures.count > 0){
+        orderMoves(captures, -1, -1);
+
+        for (int i=0; i<captures.count; i++){
+            Move capture = captures.moves[i];
+            board.applyMove(capture);
+            int score = -quiesce(board, -beta, -alpha);
+            board.unmakeMove();
+            if (score >= beta) return beta;
+            if (score > alpha) alpha = score;
+        }
     }
     return alpha;
 }
 
 void Search::orderMoves(MoveList& moves, int ttBestFrom, int ttBestTo) const {
-    // TODO Phase 9: score each move (TT best, MVV-LVA, quiets), sort descending
-    (void)moves; (void)ttBestFrom; (void)ttBestTo;
+    std::sort(moves.moves, moves.moves+moves.count, [=](Move a, Move b){
+        return moveRankValue(a, ttBestFrom, ttBestTo) < moveRankValue(b, ttBestFrom, ttBestTo); //< because sort descending
+    });
 }
 
+int Search::moveRankValue(const Move&m, int ttBestFrom, int ttBestTo) const{
+    // // std::cout << "moveType:" << m.moveType << std::endl;
+    // // std::cout << "move to:" << m.to << std::endl;
+    // // std::cout << "move from:" << m.from << std::endl;
+    // // std::cout << "move piece:" << m.piece << std::endl;
+    // // std::cout << "move rank value calc" << std::endl;
+    int value = hashMove(m, ttBestFrom, ttBestTo)*1000;
+    // std::cout << "hash value calced" << std::endl;
+    
+    value += mvvLva(m)*10;
+    // std::cout << "mvvLva calced" << std::endl;
+
+    value += moveTypeMap.at(m.moveType); //values declared in Search.h
+    return value;
+}
+
+//integer value of 1 if m is the principal move (best hashed moved)
+int Search::hashMove(const Move& m, int ttBestFrom, int ttBestTo) const{
+    return (m.from == ttBestFrom)&(m.to == ttBestTo); 
+}
+
+//most significant factor higher sig digit
 int Search::mvvLva(const Move& m) const {
-    // TODO Phase 9: 10 * MATERIAL[victim] - MATERIAL[attacker]
-    (void)m;
+    if((m.moveType == Move::Capture)||(m.moveType == Move::PromoteCapture)||(m.moveType == Move::EnPassant)){
+
+        return 10*MATERIAL[m.cPiece] - MATERIAL[m.piece]; 
+    }
     return 0;
 }
+
+

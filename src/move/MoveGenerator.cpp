@@ -3,6 +3,7 @@
 #include "../move/AttackTables.h"
 #include "../utils/Bits.h"
 #include <algorithm>
+#include <iostream>
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -473,8 +474,10 @@ MoveList MoveGenerator::generateLegalMoves(const Board& board) {
         Board copy = board;
         copy.applyMove(pseudo.moves[i]);
         // After the move, whiteTurn has toggled — the side that just moved is !copy.whiteTurn
-        if (!copy.isKingInCheck(!copy.whiteTurn))
+        if (!copy.oppCheck()){
             legal.push(pseudo.moves[i]);
+            // std::cout << copy.displayBoard() << std::endl;
+        }
     }
     return legal;
 }
@@ -487,13 +490,13 @@ MoveList MoveGenerator::generateLegalCaptures(const Board& board) {
         Board copy = board;
         copy.applyMove(pseudo.moves[i]);
         // After the move, whiteTurn has toggled — the side that just moved is !copy.whiteTurn
-        if (!copy.isKingInCheck(!copy.whiteTurn))
+        if (!copy.oppCheck())
             legal.push(pseudo.moves[i]);
     }
     return legal;
 }
 
-
+//TODO: remove this, should be part of search and have no branching
 void MoveGenerator::MVVLVA(MoveList& movelist){
     std::sort(movelist.moves, movelist.moves+(movelist.count*sizeof(Move)), [](Move a, Move b) {
         return (a.cPiece == b.cPiece) ? (a.piece < b.piece) : (a.cPiece > b.cPiece);

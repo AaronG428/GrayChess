@@ -59,8 +59,8 @@ public:
     uint64_t    attackBoard(bool white) const;
     std::string moveNotation(const Move& move);
     bool        check() const;
-    bool        isKingInCheck(bool white) const;
-    bool        checkMate();
+    bool     oppCheck() const;
+    bool checkMate();
     bool        staleMate();
 
     // Move application — declare only; all specialisations are defined in Board.cpp

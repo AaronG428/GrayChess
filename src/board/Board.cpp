@@ -289,15 +289,19 @@ std::string Board::moveNotation(const Move& move) {
 // ---------------------------------------------------------------------------
 // Check / checkmate / stalemate
 // ---------------------------------------------------------------------------
-bool Board::isKingInCheck(bool white) const {
-    uint64_t opponentAtks = attackBoard(!white);
-    uint64_t king         = white ? pieceBB[6] : pieceBB[13];
+bool Board::check() const {
+    uint64_t opponentAtks = attackBoard(!whiteTurn);
+    uint64_t king         = whiteTurn ? pieceBB[6] : pieceBB[13];
     return (opponentAtks & king) != 0;
 }
 
-bool Board::check() const {
-    return isKingInCheck(whiteTurn);
+bool Board::oppCheck() const {
+    uint64_t opponentAtks = attackBoard(whiteTurn);
+    uint64_t king         = !whiteTurn ? pieceBB[6] : pieceBB[13];
+    return (opponentAtks & king) != 0;
 }
+
+
 
 void Board::applyMove(const Move& m) {
     switch (m.moveType) {
