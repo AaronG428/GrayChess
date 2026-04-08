@@ -12,7 +12,7 @@ Search::Search(TranspositionTable& tt) : tt_(tt) {
         {Move::Castle,         1},
         {Move::Quiet,          0}}; 
 
-    // std::cout << "moveTypeMap: " << moveTypeMap.at(Move::PromoteCapture) << std::endl;
+    // std:://cout << "moveTypeMap: " << moveTypeMap.at(Move::PromoteCapture) << std::endl;
 }
 
 static constexpr int INF      = 1'000'000;
@@ -45,7 +45,7 @@ Move Search::findBestMove(Board& board, int maxDepth) {
     //  (depth from root, not remaining depth).
 int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     // TODO Phase 9: TT probe, terminal detection, move ordering, recursive search
-    // std::cout << "depth: " << depth << std::endl;
+    // std:://cout << "depth: " << depth << std::endl;
     uint64_t hash = board.hash;
     TTEntry* entry = tt_.probe(hash);
     int ttBestFrom = -1, ttBestTo = -1;
@@ -85,12 +85,12 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     // test code
     // for(int i=0; i<moves.count; i++){
     //     Move m = moves.moves[i];
-    //     // std::cout << "moveType:" << m.moveType << std::endl;
-    //     // std::cout << "move to:" << m.to << std::endl;
-    //     // std::cout << "move from:" << m.from << std::endl;
-    //     // std::cout << "move piece:" << m.piece << std::endl;
+    //     // std:://cout << "moveType:" << m.moveType << std::endl;
+    //     // std:://cout << "move to:" << m.to << std::endl;
+    //     // std:://cout << "move from:" << m.from << std::endl;
+    //     // std:://cout << "move piece:" << m.piece << std::endl;
     // }
-    // std::cout << "-----------End move list----------" << std::endl;
+    // std:://cout << "-----------End move list----------" << std::endl;
 
     // end test code
     // If no legal moves
@@ -103,17 +103,17 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
         //Stalemate
         return 0;
     }
-    // std::cout << "moves length: " << moves.count << std::endl;
+    // std:://cout << "moves length: " << moves.count << std::endl;
     orderMoves(moves, ttBestFrom, ttBestTo);
-    // std::cout << "ordered moves:" << moves.count << std::endl;
+    // std:://cout << "ordered moves:" << moves.count << std::endl;
     bool updatedAlpha = false;
     // Move* bestMove  
     for(int i=0; i<moves.count; i++){
         Move move = moves.moves[i];
         board.applyMove(move);
-        // std::cout << "pre negamax" << std::endl;
+        // std:://cout << "pre negamax" << std::endl;
         int score = -negamax(board, depth-1, -beta, -alpha, ply+1);
-        // std::cout << "post negamax" << std::endl;
+        // std:://cout << "post negamax" << std::endl;
         board.unmakeMove();
 
         if (score >= beta){
@@ -158,10 +158,10 @@ int Search::quiesce(Board& board, int alpha, int beta) {
     MoveList captures = MoveGenerator::generateLegalCaptures(board);
     // test code
     // for (Move m:captures.moves){
-    //     // std::cout << "moveType:" << m.moveType << std::endl;
-    //     // std::cout << "move to:" << m.to << std::endl;
-    //     // std::cout << "move from:" << m.from << std::endl;
-    //     // std::cout << "move piece:" << m.piece << std::endl;
+    //     // std:://cout << "moveType:" << m.moveType << std::endl;
+    //     // std:://cout << "move to:" << m.to << std::endl;
+    //     // std:://cout << "move from:" << m.from << std::endl;
+    //     // std:://cout << "move piece:" << m.piece << std::endl;
     // }
 
     // end test code
@@ -182,23 +182,26 @@ int Search::quiesce(Board& board, int alpha, int beta) {
 
 void Search::orderMoves(MoveList& moves, int ttBestFrom, int ttBestTo) const {
     std::sort(moves.moves, moves.moves+moves.count, [=](Move a, Move b){
-        return moveRankValue(a, ttBestFrom, ttBestTo) < moveRankValue(b, ttBestFrom, ttBestTo); //< because sort descending
+        return moveRankValue(a, ttBestFrom, ttBestTo) > moveRankValue(b, ttBestFrom, ttBestTo); //< because sort descending
     });
 }
 
 int Search::moveRankValue(const Move&m, int ttBestFrom, int ttBestTo) const{
-    // // std::cout << "moveType:" << m.moveType << std::endl;
-    // // std::cout << "move to:" << m.to << std::endl;
-    // // std::cout << "move from:" << m.from << std::endl;
-    // // std::cout << "move piece:" << m.piece << std::endl;
-    // // std::cout << "move rank value calc" << std::endl;
-    int value = hashMove(m, ttBestFrom, ttBestTo)*1000;
-    // std::cout << "hash value calced" << std::endl;
+    // // std:://cout << "moveType:" << m.moveType << std::endl;
+    // // std:://cout << "move to:" << m.to << std::endl;
+    // // std:://cout << "move from:" << m.from << std::endl;
+    // // std:://cout << "move piece:" << m.piece << std::endl;
+    // // std:://cout << "move rank value calc" << std::endl;
+    //cout << "Ranking " << endl;
+    int value = hashMove(m, ttBestFrom, ttBestTo)*100000;
+    // std:://cout << "hash value calced" << std::endl;
+    //cout << "value: " << value << endl;
+    value += mvvLva(m);
+    //cout << "value: " << value << endl;
+    // std:://cout << "mvvLva calced" << std::endl;
     
-    value += mvvLva(m)*10;
-    // std::cout << "mvvLva calced" << std::endl;
-
     value += moveTypeMap.at(m.moveType); //values declared in Search.h
+    //cout << "value: " << value << endl;
     return value;
 }
 
