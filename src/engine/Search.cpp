@@ -18,16 +18,20 @@ Search::Search(TranspositionTable& tt) : tt_(tt) {
 static constexpr int INF      = 1'000'000;
 static constexpr int MATE_VAL = 900'000;
 
-Move Search::findBestMove(Board& board, int maxDepth) {
+Move Search::findBestMove(Board& board, int maxDepth, InfoCallback cb) {
     Move best{};
     bool hasBest = false;
 
     for (int depth = 1; depth <= maxDepth && !stop_; depth++) {
-        negamax(board, depth, -INF, INF);
+        int score = negamax(board, depth, -INF, INF);
         // Only save the result if this depth completed without being stopped.
         if (!stop_) {
             TTEntry* e = tt_.probe(board.hash);
-            if (e) { best = e->bestMove; hasBest = true; }
+            if (e) {
+                best    = e->bestMove;
+                hasBest = true;
+                if (cb) cb(depth, score, best);
+            }
         }
     }
 

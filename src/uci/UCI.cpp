@@ -78,13 +78,14 @@ void UCI::handleGo(std::istringstream& ss) {
     if (searchThread_.joinable()) searchThread_.join();
 
     std::string token;
-    int  depth       = 10;
+    int  depth       = 100; // default: search deep until stopped
     int  wtime       = 0, btime = 0, winc = 0, binc = 0, movetime = 0;
     bool hasDepth    = false;
     bool hasMovetime = false;
 
     while (ss >> token) {
-        if      (token == "depth")    { ss >> depth;    hasDepth    = true; }
+        if      (token == "infinite")  { /* depth stays at 100, no time limit */ }
+        else if (token == "depth")    { ss >> depth;    hasDepth    = true; }
         else if (token == "movetime") { ss >> movetime; hasMovetime = true; }
         else if (token == "wtime")    { ss >> wtime; }
         else if (token == "btime")    { ss >> btime; }
@@ -107,7 +108,29 @@ void UCI::handleGo(std::istringstream& ss) {
     }
 
     searchThread_ = std::thread([this, depth]() {
-        Move best = search_.findBestMove(board_, depth);
+        auto cb = [this](int d, int score, const Move& best) {
+            long     ms    = search_.elapsedMs();
+            uint64_t nodes = search_.nodes();
+            uint64_t nps   = ms > 0 ? nodes * 1000ULL / ms : 0;
+
+            // Detect mate scores (MATE_VAL = 900000, threshold at half).
+            bool isMate = std::abs(score) > 450'000;
+            std::cout << "info depth " << d << " score ";
+            if (isMate) {
+                int plies = 900'000 - std::abs(score);
+                int moves = (plies + 1) / 2;
+                int sign  = (score > 0) ? 1 : -1;
+                std::cout << "mate " << sign * moves;
+            } else {
+                std::cout << "cp " << score;
+            }
+            std::cout << " nodes " << nodes
+                      << " nps "   << nps
+                      << " time "  << ms
+                      << " pv "    << UCI::moveToUCI(best) << "\n" << std::flush;
+        };
+
+        Move best = search_.findBestMove(board_, depth, cb);
         std::cout << "bestmove " << moveToUCI(best) << "\n" << std::flush;
     });
 }
