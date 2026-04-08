@@ -19,12 +19,26 @@ static constexpr int INF      = 1'000'000;
 static constexpr int MATE_VAL = 900'000;
 
 Move Search::findBestMove(Board& board, int maxDepth) {
-    for (int depth = 1; depth <= maxDepth; depth++) {
+    Move best{};
+    bool hasBest = false;
+
+    for (int depth = 1; depth <= maxDepth && !stop_; depth++) {
         negamax(board, depth, -INF, INF);
-        // best move is the TT entry for the root position after each iteration
+        // Only save the result if this depth completed without being stopped.
+        if (!stop_) {
+            TTEntry* e = tt_.probe(board.hash);
+            if (e) { best = e->bestMove; hasBest = true; }
+        }
     }
-    return tt_.probe(board.hash)->bestMove;
-    
+
+    if (!hasBest) {
+        // Stopped before depth 1 finished — fall back to TT or first legal move.
+        TTEntry* e = tt_.probe(board.hash);
+        if (e) return e->bestMove;
+        MoveList moves = MoveGenerator::generateLegalMoves(board);
+        if (moves.count > 0) return moves.moves[0];
+    }
+    return best;
 }
 
 
@@ -44,8 +58,15 @@ Move Search::findBestMove(Board& board, int maxDepth) {
     //  Mate score encoding: return -(MATE_VAL - ply) so shorter mates score higher. The ply parameter threads through recursion
     //  (depth from root, not remaining depth).
 int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
-    // TODO Phase 9: TT probe, terminal detection, move ordering, recursive search
-    // std:://cout << "depth: " << depth << std::endl;
+    if (stop_) return 0;
+
+    // Check deadline every 2048 nodes to amortise the clock call.
+    if ((++nodes_ & 2047) == 0 &&
+        std::chrono::steady_clock::now() >= deadline_) {
+        stop_ = true;
+        return 0;
+    }
+
     uint64_t hash = board.hash;
     TTEntry* entry = tt_.probe(hash);
     int ttBestFrom = -1, ttBestTo = -1;

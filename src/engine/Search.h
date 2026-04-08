@@ -2,6 +2,8 @@
 #include "../board/Board.h"
 #include "../move/MoveList.h"
 #include "TranspositionTable.h"
+#include <atomic>
+#include <chrono>
 #include <unordered_map>
 
 using namespace std;
@@ -20,6 +22,15 @@ public:
     int negamax(Board& board, int depth, int alpha, int beta, int ply = 0);
     int quiesce(Board& board, int alpha, int beta);
 
+    // Time / stop control — called from UCI.
+    void stop()      { stop_ = true; }
+    void resetStop() { stop_ = false; nodes_ = 0;
+                       deadline_ = std::chrono::steady_clock::time_point::max(); }
+    void setTimeLimit(long ms) {
+        deadline_ = std::chrono::steady_clock::now()
+                  + std::chrono::milliseconds(ms);
+    }
+
     // Exposed for unit testing (would otherwise be private).
     void orderMoves(MoveList& moves, int ttBestFrom, int ttBestTo) const;
     int  moveRankValue(const Move& m, int ttBestFrom, int ttBestTo) const;
@@ -29,5 +40,10 @@ public:
 private:
     TranspositionTable& tt_;
     unordered_map<Move::MoveEnum, int> moveTypeMap;
+
+    std::atomic<bool> stop_{false};
+    std::chrono::steady_clock::time_point deadline_
+        { std::chrono::steady_clock::time_point::max() };
+    uint64_t nodes_ = 0;
         
 };

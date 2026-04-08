@@ -62,3 +62,10 @@ add_test(NAME TranspositionTable  COMMAND TestTranspositionTable)
 add_executable(TestSearch tests/TestSearch.cpp)
 target_link_libraries(TestSearch engine)
 add_test(NAME Search COMMAND TestSearch)
+
+add_executable(GrayChess src/main.cpp src/uci/UCI.cpp)
+target_link_libraries(GrayChess engine)
+
+add_executable(TestUCI tests/TestUCI.cpp src/uci/UCI.cpp)
+target_link_libraries(TestUCI engine)
+add_test(NAME UCI COMMAND TestUCI)
