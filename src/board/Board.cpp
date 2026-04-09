@@ -289,16 +289,41 @@ std::string Board::moveNotation(const Move& move) {
 // ---------------------------------------------------------------------------
 // Check / checkmate / stalemate
 // ---------------------------------------------------------------------------
+
+// Is square sq attacked by any piece belonging to byWhite?
+// Uses reverse-lookup: cast attacks outward from sq and intersect with enemy
+// piece bitboards. Short-circuits on the first attacker found.
+bool Board::isSquareAttackedBy(int sq, bool byWhite) const {
+    const int atkIdx = byWhite ? 0 : 7;   // attacker's base index
+    const int atkBit = byWhite ? 0 : 1;   // 0=white pawn attacks, 1=black
+    const int revBit = 1 - atkBit;        // opposite color for reverse pawn lookup
+
+    // Pawns — reverse: use the opponent's pawn attack pattern from sq
+    if (AttackTables::PAWN_ATTACKS[revBit][sq] & pieceBB[atkIdx + 1]) return true;
+    // Knights
+    if (AttackTables::KNIGHT_ATTACKS[sq]        & pieceBB[atkIdx + 3]) return true;
+    // Bishops + Queens (diagonals)
+    if (AttackTables::bishopAttacks(sq, occupiedBB) &
+        (pieceBB[atkIdx + 2] | pieceBB[atkIdx + 5])) return true;
+    // Rooks + Queens (orthogonals)
+    if (AttackTables::rookAttacks(sq, occupiedBB) &
+        (pieceBB[atkIdx + 4] | pieceBB[atkIdx + 5])) return true;
+    // King
+    if (AttackTables::KING_ATTACKS[sq]          & pieceBB[atkIdx + 6]) return true;
+
+    return false;
+}
+
 bool Board::check() const {
-    uint64_t opponentAtks = attackBoard(!whiteTurn);
-    uint64_t king         = whiteTurn ? pieceBB[6] : pieceBB[13];
-    return (opponentAtks & king) != 0;
+    uint64_t kingBB = whiteTurn ? pieceBB[6] : pieceBB[13];
+    if (!kingBB) return false;
+    return isSquareAttackedBy(lsb(kingBB), !whiteTurn);
 }
 
 bool Board::oppCheck() const {
-    uint64_t opponentAtks = attackBoard(whiteTurn);
-    uint64_t king         = !whiteTurn ? pieceBB[6] : pieceBB[13];
-    return (opponentAtks & king) != 0;
+    uint64_t kingBB = !whiteTurn ? pieceBB[6] : pieceBB[13];
+    if (!kingBB) return false;
+    return isSquareAttackedBy(lsb(kingBB), whiteTurn);
 }
 
 

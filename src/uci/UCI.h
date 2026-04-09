@@ -15,7 +15,7 @@ public:
     // Exposed for unit testing.
     const Board& board() const { return board_; }
     void         handlePosition(std::istringstream& ss);
-    Move         parseMoveUCI(const std::string& uci) const;
+    Move         parseMoveUCI(const std::string& uci);
     static int         squareFromUCI(const std::string& s);
     static std::string moveToUCI(const Move& m);
 

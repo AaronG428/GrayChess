@@ -257,8 +257,7 @@ static void genCastleMoves(const Board& board, MoveList& list) {
 
     const int kingFrom = white ? 3 : 59;
 
-    // Precompute squares the opponent attacks (needed for through-check test)
-    const uint64_t attacked = board.attackBoard(!white);
+    // (attacked squares checked per-square below via isSquareAttackedBy)
 
     struct CastleSpec {
         bool      right;
@@ -290,9 +289,16 @@ static void genCastleMoves(const Board& board, MoveList& list) {
     }
 
     for (const CastleSpec& c : specs) {
-        if (!c.right)                        continue; // right revoked
-        if (c.emptyMask & board.occupiedBB)  continue; // path blocked
-        if (c.kingPath  & attacked)          continue; // king in/through check
+        if (!c.right)                       continue; // right revoked
+        if (c.emptyMask & board.occupiedBB) continue; // path blocked
+        // King must not start in, pass through, or land on an attacked square.
+        bool pathSafe = true;
+        uint64_t path = c.kingPath;
+        while (path) {
+            int sq = lsb(path); path &= path - 1;
+            if (board.isSquareAttackedBy(sq, !white)) { pathSafe = false; break; }
+        }
+        if (!pathSafe) continue;
         Move m;
         m.moveType = Move::Castle;
         m.piece    = Move::King;
@@ -468,31 +474,26 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
 // ---------------------------------------------------------------------------
 // Legal move generation (Phase 5)
 // ---------------------------------------------------------------------------
-MoveList MoveGenerator::generateLegalMoves(const Board& board) {
+MoveList MoveGenerator::generateLegalMoves(Board& board) {
     MoveList pseudo = generateMoves(board);
     MoveList legal;
     for (int i = 0; i < pseudo.count; i++) {
-        Board copy = board;
-        copy.applyMove(pseudo.moves[i]);
-        // After the move, whiteTurn has toggled — the side that just moved is !copy.whiteTurn
-        if (!copy.oppCheck()){
+        board.applyMove(pseudo.moves[i]);
+        if (!board.oppCheck())
             legal.push(pseudo.moves[i]);
-            // std::cout << copy.displayBoard() << std::endl;
-        }
+        board.unmakeMove();
     }
     return legal;
 }
 
-
-MoveList MoveGenerator::generateLegalCaptures(const Board& board) {
+MoveList MoveGenerator::generateLegalCaptures(Board& board) {
     MoveList pseudo = generateCaptures(board);
     MoveList legal;
     for (int i = 0; i < pseudo.count; i++) {
-        Board copy = board;
-        copy.applyMove(pseudo.moves[i]);
-        // After the move, whiteTurn has toggled — the side that just moved is !copy.whiteTurn
-        if (!copy.oppCheck())
+        board.applyMove(pseudo.moves[i]);
+        if (!board.oppCheck())
             legal.push(pseudo.moves[i]);
+        board.unmakeMove();
     }
     return legal;
 }

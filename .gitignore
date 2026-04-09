@@ -7,3 +7,4 @@ Resources/*
 build/*
 legacy/*
 build_debug/
+build_asan/

@@ -189,7 +189,7 @@ std::string UCI::moveToUCI(const Move& m) {
 }
 
 // Find the legal move that matches the UCI coordinate string.
-Move UCI::parseMoveUCI(const std::string& uci) const {
+Move UCI::parseMoveUCI(const std::string& uci) {
     int from = squareFromUCI(uci.substr(0, 2));
     int to   = squareFromUCI(uci.substr(2, 2));
 

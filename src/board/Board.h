@@ -57,6 +57,10 @@ public:
 
     // Game logic
     uint64_t    attackBoard(bool white) const;
+    // Targeted check: is square sq attacked by any piece of color byWhite?
+    // Uses reverse-lookup with early exit — much faster than attackBoard() for
+    // single-square queries (check detection, castle path validation).
+    bool isSquareAttackedBy(int sq, bool byWhite) const;
     std::string moveNotation(const Move& move);
     bool        check() const;
     bool     oppCheck() const;
