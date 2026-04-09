@@ -42,6 +42,10 @@ public:
     uint64_t emptyBB;
     uint64_t occupiedBB;
 
+    // Mailbox: mailbox[sq] = piece type (0–5, matching Move::PieceEnum), or -1 if empty.
+    // Maintained incrementally alongside pieceBB for O(1) piece-type lookup.
+    int8_t mailbox[64];
+
     std::vector<Move> moveHistory;
 
     Board();
@@ -54,6 +58,9 @@ public:
     std::string constructBoardString() const;
     std::string displayBoard() const;
     std::string displayBoard(uint64_t bb) const;
+
+    // Rebuild mailbox from pieceBB — call after bulk bitboard changes (init, loadFEN).
+    void rebuildMailbox();
 
     // Game logic
     uint64_t    attackBoard(bool white) const;

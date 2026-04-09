@@ -119,6 +119,8 @@ void Board::loadFEN(const std::string& fen) {
 
     // --- Zobrist hash ---
     hash = Zobrist::compute(*this);
+
+    rebuildMailbox();
 }
 
 void Board::init() {
@@ -148,6 +150,15 @@ void Board::init() {
     emptyBB    = ~occupiedBB;
 
     hash = Zobrist::compute(*this);
+    rebuildMailbox();
+}
+
+void Board::rebuildMailbox() {
+    for (int sq = 0; sq < 64; sq++) mailbox[sq] = -1;
+    for (int p = 0; p < 6; p++) {
+        uint64_t bb = pieceBB[p + 1] | pieceBB[p + 8];
+        while (bb) { int sq = lsb(bb); bb &= bb - 1; mailbox[sq] = static_cast<int8_t>(p); }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -408,11 +419,16 @@ void Board::updateByMove<Move::Quiet>(Move move) {
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
 
-    int newRights = (castleRights[0] << 0)                                                                                         
-                | (castleRights[1] << 1)                                                                          
-                | (castleRights[2] << 2)                                                                                         
-                | (castleRights[3] << 3); 
-    
+    if (move.from != move.to) {   // guard: null move uses from==to==0
+        mailbox[move.to]   = mailbox[move.from];
+        mailbox[move.from] = -1;
+    }
+
+    int newRights = (castleRights[0] << 0)
+                | (castleRights[1] << 1)
+                | (castleRights[2] << 2)
+                | (castleRights[3] << 3);
+
     hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
     hash ^= Zobrist::castleRightsDelta(oldRights, newRights);
     hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
@@ -457,11 +473,14 @@ void Board::updateByMove<Move::Capture>(Move move) {
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
 
-    int newRights = (castleRights[0] << 0)                                                                                         
-            | (castleRights[1] << 1)                                                                          
-            | (castleRights[2] << 2)                                                                                         
-            | (castleRights[3] << 3); 
-    
+    mailbox[move.to]   = mailbox[move.from];  // captured piece overwritten
+    mailbox[move.from] = -1;
+
+    int newRights = (castleRights[0] << 0)
+            | (castleRights[1] << 1)
+            | (castleRights[2] << 2)
+            | (castleRights[3] << 3);
+
     hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
     hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
     hash ^= Zobrist::castleRightsDelta(oldRights, newRights);
@@ -501,6 +520,10 @@ void Board::updateByMove<Move::EnPassant>(Move move) {
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
 
+    mailbox[move.to]     = mailbox[move.from];
+    mailbox[move.from]   = -1;
+    mailbox[capturedBit] = -1;
+
     hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
     hash ^= Zobrist::removePiece(capturedPawnIdx, capturedBit);
     hash ^= Zobrist::epFileDelta(oldEnPassantSquare, enPassantSquare);
@@ -529,6 +552,9 @@ void Board::updateByMove<Move::Promote>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    mailbox[move.from] = -1;
+    mailbox[move.to]   = static_cast<int8_t>(move.newPiece);
 
     hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
     hash ^= Zobrist::removePiece(pieceIdx, move.to);
@@ -565,6 +591,9 @@ void Board::updateByMove<Move::PromoteCapture>(Move move) {
     if (move.color == Move::Black) fullMoveNumber++;
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
+
+    mailbox[move.from] = -1;
+    mailbox[move.to]   = static_cast<int8_t>(move.newPiece);  // captured overwritten
 
     hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
     hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
@@ -625,10 +654,15 @@ void Board::updateByMove<Move::Castle>(Move move) {
     whiteTurn = !whiteTurn;
     moveHistory.push_back(move);
 
-    int newRights = (castleRights[0] << 0)                                                                                         
-        | (castleRights[1] << 1)                                                                          
-        | (castleRights[2] << 2)                                                                                         
-        | (castleRights[3] << 3); 
+    mailbox[kingTo]   = static_cast<int8_t>(Move::King);
+    mailbox[kingFrom] = -1;
+    mailbox[rookTo]   = static_cast<int8_t>(Move::Rook);
+    mailbox[rookFrom] = -1;
+
+    int newRights = (castleRights[0] << 0)
+        | (castleRights[1] << 1)
+        | (castleRights[2] << 2)
+        | (castleRights[3] << 3);
 
     hash ^= Zobrist::movePiece(kingIdx, kingFrom, kingTo);
     hash ^= Zobrist::movePiece(rookIdx, rookFrom, rookTo);
@@ -680,7 +714,10 @@ void Board::unmakeMove() {
             pieceBB[colorIdx] ^= fromTo;
             occupiedBB        ^= fromTo;
             emptyBB           ^= fromTo;
-
+            if (move.from != move.to) {   // guard: null move uses from==to==0
+                mailbox[move.from] = static_cast<int8_t>(move.piece);
+                mailbox[move.to]   = -1;
+            }
             hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
             break;
 
@@ -693,7 +730,8 @@ void Board::unmakeMove() {
             pieceBB[enemyColorIdx]    ^= to;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
-
+            mailbox[move.from] = static_cast<int8_t>(move.piece);
+            mailbox[move.to]   = static_cast<int8_t>(move.cPiece);
             hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
             hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
             break;
@@ -710,7 +748,9 @@ void Board::unmakeMove() {
             pieceBB[enemyColorIdx]   ^= capturedBB;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
-
+            mailbox[move.from]   = static_cast<int8_t>(Move::Pawn);
+            mailbox[move.to]     = -1;
+            mailbox[capturedBit] = static_cast<int8_t>(Move::Pawn);
             hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
             hash ^= Zobrist::removePiece(capturedPawnIdx, capturedBit);
             break;
@@ -723,6 +763,8 @@ void Board::unmakeMove() {
             pieceBB[colorIdx]    ^= fromTo;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
+            mailbox[move.from] = static_cast<int8_t>(Move::Pawn);
+            mailbox[move.to]   = -1;
             hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
             hash ^= Zobrist::removePiece(pieceIdx, move.to);
             hash ^= Zobrist::removePiece(newPieceIdx, move.to);
@@ -740,7 +782,8 @@ void Board::unmakeMove() {
             pieceBB[enemyColorIdx]    ^= to;
             occupiedBB = pieceBB[0] | pieceBB[7];
             emptyBB    = ~occupiedBB;
-
+            mailbox[move.from] = static_cast<int8_t>(Move::Pawn);
+            mailbox[move.to]   = static_cast<int8_t>(move.cPiece);
             hash ^= Zobrist::movePiece(pieceIdx, move.from, move.to);
             hash ^= Zobrist::removePiece(capturedPieceIdx, move.to);
             hash ^= Zobrist::removePiece(pieceIdx, move.to);
@@ -769,7 +812,10 @@ void Board::unmakeMove() {
             pieceBB[colorIdx] ^= allFromTo;
             occupiedBB        ^= allFromTo;
             emptyBB           ^= allFromTo;
-
+            mailbox[kingFrom] = static_cast<int8_t>(Move::King);
+            mailbox[kingTo]   = -1;
+            mailbox[rookFrom] = static_cast<int8_t>(Move::Rook);
+            mailbox[rookTo]   = -1;
             hash ^= Zobrist::movePiece(kingIdx, kingFrom, kingTo);
             hash ^= Zobrist::movePiece(rookIdx, rookFrom, rookTo);
             break;

@@ -9,14 +9,9 @@
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-// Return the piece type belonging to `enemyColorIdx` that occupies square `sq`.
-static Move::PieceEnum pieceTypeAt(const Board& board, int sq, int enemyColorIdx) {
-    uint64_t bit = 1ULL << sq;
-    for (int p = 0; p < 6; p++) {
-        if (board.pieceBB[enemyColorIdx + 1 + p] & bit)
-            return static_cast<Move::PieceEnum>(p);
-    }
-    return Move::Pawn; // unreachable if sq is genuinely occupied by the enemy
+// O(1) piece-type lookup via the incremental mailbox.
+static inline Move::PieceEnum pieceTypeAt(const Board& board, int sq) {
+    return static_cast<Move::PieceEnum>(board.mailbox[sq]);
 }
 
 // Emit the four promotion variants for a pawn that reaches the back rank.
@@ -92,7 +87,7 @@ static void genPawnMoves(const Board& board, MoveList& list) {
         uint64_t attacks = AttackTables::PAWN_ATTACKS[colorBit][from] & enemy;
         while (attacks) {
             const int cap = lsb(attacks); attacks &= attacks - 1;
-            const Move::PieceEnum cPiece = pieceTypeAt(board, cap, enemyColorIdx);
+            const Move::PieceEnum cPiece = pieceTypeAt(board, cap);
             if (isPromoRank) {
                 addPromos(list, from, cap, colorEnum, enemyEnum, true, cPiece);
             } else {
@@ -148,7 +143,7 @@ static void genKnightMoves(const Board& board, MoveList& list) {
             const int to = lsb(captures); captures &= captures - 1;
             Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
             m.piece = Move::Knight; m.color = colorEnum;
-            m.cPiece = pieceTypeAt(board, to, enemyColorIdx);
+            m.cPiece = pieceTypeAt(board, to);
             m.cColor = enemyEnum;
             list.push(m);
         }
@@ -189,7 +184,7 @@ static void genSliderMoves(const Board& board, MoveList& list,
             const int to = lsb(captures); captures &= captures - 1;
             Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
             m.piece = piece; m.color = colorEnum;
-            m.cPiece = pieceTypeAt(board, to, enemyColorIdx);
+            m.cPiece = pieceTypeAt(board, to);
             m.cColor = enemyEnum;
             list.push(m);
         }
@@ -227,7 +222,7 @@ static void genKingMoves(const Board& board, MoveList& list) {
             const int to = lsb(captures); captures &= captures - 1;
             Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
             m.piece = Move::King; m.color = colorEnum;
-            m.cPiece = pieceTypeAt(board, to, enemyColorIdx);
+            m.cPiece = pieceTypeAt(board, to);
             m.cColor = enemyEnum;
             list.push(m);
         }
@@ -360,7 +355,7 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
             uint64_t attacks = AttackTables::PAWN_ATTACKS[colorBit][from] & enemy;
             while (attacks) {
                 const int cap = lsb(attacks); attacks &= attacks - 1;
-                const Move::PieceEnum cPiece = pieceTypeAt(board, cap, enemyColorIdx);
+                const Move::PieceEnum cPiece = pieceTypeAt(board, cap);
                 if (isPromoRank) {
                     addPromos(list, from, cap, colorEnum, enemyEnum, true, cPiece);
                 } else {
@@ -394,7 +389,7 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
                 const int to = lsb(captures); captures &= captures - 1;
                 Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
                 m.piece = Move::Knight; m.color = colorEnum;
-                m.cPiece = pieceTypeAt(board, to, enemyColorIdx); m.cColor = enemyEnum;
+                m.cPiece = pieceTypeAt(board, to); m.cColor = enemyEnum;
                 list.push(m);
             }
         }
@@ -411,7 +406,7 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
                 const int to = lsb(captures); captures &= captures - 1;
                 Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
                 m.piece = Move::Bishop; m.color = colorEnum;
-                m.cPiece = pieceTypeAt(board, to, enemyColorIdx); m.cColor = enemyEnum;
+                m.cPiece = pieceTypeAt(board, to); m.cColor = enemyEnum;
                 list.push(m);
             }
         }
@@ -428,7 +423,7 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
                 const int to = lsb(captures); captures &= captures - 1;
                 Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
                 m.piece = Move::Rook; m.color = colorEnum;
-                m.cPiece = pieceTypeAt(board, to, enemyColorIdx); m.cColor = enemyEnum;
+                m.cPiece = pieceTypeAt(board, to); m.cColor = enemyEnum;
                 list.push(m);
             }
         }
@@ -445,7 +440,7 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
                 const int to = lsb(captures); captures &= captures - 1;
                 Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
                 m.piece = Move::Queen; m.color = colorEnum;
-                m.cPiece = pieceTypeAt(board, to, enemyColorIdx); m.cColor = enemyEnum;
+                m.cPiece = pieceTypeAt(board, to); m.cColor = enemyEnum;
                 list.push(m);
             }
         }
@@ -462,7 +457,7 @@ MoveList MoveGenerator::generateCaptures(const Board& board) {
                 const int to = lsb(captures); captures &= captures - 1;
                 Move m; m.moveType = Move::Capture; m.from = from; m.to = to;
                 m.piece = Move::King; m.color = colorEnum;
-                m.cPiece = pieceTypeAt(board, to, enemyColorIdx); m.cColor = enemyEnum;
+                m.cPiece = pieceTypeAt(board, to); m.cColor = enemyEnum;
                 list.push(m);
             }
         }

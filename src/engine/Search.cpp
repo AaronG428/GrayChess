@@ -4,15 +4,6 @@
 #include <iostream>
 
 Search::Search(TranspositionTable& tt) : tt_(tt) {
-    moveTypeMap = {
-        {Move::PromoteCapture, 5},
-        {Move::Capture,        4},
-        {Move::EnPassant,      3},
-        {Move::Promote,        2},
-        {Move::Castle,         1},
-        {Move::Quiet,          0}}; 
-
-    // std:://cout << "moveTypeMap: " << moveTypeMap.at(Move::PromoteCapture) << std::endl;
     setNullMoveR(2);
 }
 
@@ -318,7 +309,7 @@ void Search::orderMoves(MoveList& moves, int ttBestFrom, int ttBestTo) const {
 int Search::moveRankValue(const Move&m, int ttBestFrom, int ttBestTo) const{
     int value = hashMove(m, ttBestFrom, ttBestTo)*100000;
     value += mvvLva(m);
-    value += moveTypeMap.at(m.moveType); //values declared in Search.h
+    value += MOVE_TYPE_SCORE[m.moveType];
     return value;
 }
 

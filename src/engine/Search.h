@@ -5,7 +5,6 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
-#include <unordered_map>
 #include <vector>
 
 using namespace std;
@@ -60,7 +59,8 @@ public:
 
 private:
     TranspositionTable& tt_;
-    unordered_map<Move::MoveEnum, int> moveTypeMap;
+    // Move-type bonus indexed by Move::MoveEnum (Quiet=0,Castle=1,Capture=2,Promote=3,PromoteCapture=4,EnPassant=5)
+    static constexpr int MOVE_TYPE_SCORE[6] = {0, 1, 4, 2, 5, 3};
     int multiPV_  = 1;
     int nullMoveR_ = 3;
 
