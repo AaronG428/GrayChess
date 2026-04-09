@@ -9,12 +9,13 @@ public:
     static MoveList generateMoves(const Board& board);
 
     // Generate only legal moves (filters out moves that leave the king in check).
-    static MoveList generateLegalMoves(const Board& board);
+    // Takes Board& because it uses applyMove/unmakeMove internally (no copy).
+    static MoveList generateLegalMoves(Board& board);
 
     // Generate captures only — used by quiescence search in Phase 9.
     static MoveList generateCaptures(const Board& board);
 
-    static MoveList generateLegalCaptures(const Board& board);
+    static MoveList generateLegalCaptures(Board& board);
 
     static void MVVLVA(MoveList& movelist);
 };

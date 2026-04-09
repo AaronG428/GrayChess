@@ -14,7 +14,7 @@ static std::tuple<uint64_t, uint64_t, uint64_t, int, int>
 moveCharacteristics(const Move& move) {
     uint64_t from     = 1ULL << move.from;
     uint64_t to       = 1ULL << move.to;
-    uint64_t fromTo   = from | to;
+    uint64_t fromTo   = from ^ to;
     int colorIdx      = 7 * move.color;          // 0=white, 7=black
     int pieceIdx      = colorIdx + move.piece + 1;
     return std::make_tuple(from, to, fromTo, colorIdx, pieceIdx);

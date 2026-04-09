@@ -62,7 +62,7 @@ private:
     TranspositionTable& tt_;
     unordered_map<Move::MoveEnum, int> moveTypeMap;
     int multiPV_  = 1;
-    int nullMoveR_ = 0; // stub: disabled until implemented
+    int nullMoveR_ = 3;
 
     std::atomic<bool> stop_{false};
     std::chrono::steady_clock::time_point searchStart_{ std::chrono::steady_clock::now() };

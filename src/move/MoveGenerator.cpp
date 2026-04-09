@@ -110,6 +110,7 @@ static void genPawnMoves(const Board& board, MoveList& list) {
                 Move m; m.moveType = Move::EnPassant; m.from = from;
                 m.to = board.enPassantSquare;
                 m.piece = Move::Pawn; m.color = colorEnum;
+                m.cPiece = Move::Pawn; m.cColor = enemyEnum;
                 list.push(m);
             }
         }

@@ -13,6 +13,7 @@ Search::Search(TranspositionTable& tt) : tt_(tt) {
         {Move::Quiet,          0}}; 
 
     // std:://cout << "moveTypeMap: " << moveTypeMap.at(Move::PromoteCapture) << std::endl;
+    setNullMoveR(2);
 }
 
 static constexpr int INF      = 1'000'000;
@@ -117,21 +118,18 @@ std::vector<Move> Search::extractPV(Board board, int maxDepth) const {
 }
 
 
-    //  1. probe TT — if hit and depth >= remaining, return/adjust bounds from entry
-    //  2. if depth == 0, return quiesce(board, alpha, beta)
-    //  3. generate legal moves; if none → checkmate (-INF + ply) or stalemate (0)
-    //  4. order moves (TT best move first, then MVV-LVA for captures, then quiets)
-    //  5. for each move:
-    //       applyMove; score = -negamax(board, depth-1, -beta, -alpha); unmakeMove
-    //       if score >= beta  → store LowerBound in TT, return beta  (cutoff)
-    //       if score > alpha  → alpha = score; bestMove = move
-    //  6. store Exact (or UpperBound if no improvement) in TT
-    //  7. return alpha
+
+Move getNullMove(){
+    Move m;
+    m.moveType = Move::Quiet;
+    m.piece = Move::Pawn;
+    m.color = Move::White;
+    m.to = 0;
+    m.from = 0;
+    return m;
+}
 
 
-
-    //  Mate score encoding: return -(MATE_VAL - ply) so shorter mates score higher. The ply parameter threads through recursion
-    //  (depth from root, not remaining depth).
 int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     if (stop_) return 0;
 
@@ -222,24 +220,41 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
     //   e. if score >= beta  →  return beta  (cutoff)
     // ────────────────────────────────────────────────────────────────────────
 
-    // test code
-    // for(int i=0; i<moves.count; i++){
-    //     Move m = moves.moves[i];
-    //     // std:://cout << "moveType:" << m.moveType << std::endl;
-    //     // std:://cout << "move to:" << m.to << std::endl;
-    //     // std:://cout << "move from:" << m.from << std::endl;
-    //     // std:://cout << "move piece:" << m.piece << std::endl;
-    // }
-    // std:://cout << "-----------End move list----------" << std::endl;
 
-    // end test code
-    // If no legal moves
+    // null move
+    // This is a heuristic, it could fail in complex zugzwang positions
+    if ((nullMoveR_ > 0)&&(depth > nullMoveR_)&&(!board.check()))
+    {
+        int colorIndex = 7*(!board.whiteTurn);
+        int pawnIndex = colorIndex +1;
+        int kingIndex = colorIndex+6;
 
-    // std:://cout << "moves length: " << moves.count << std::endl;
+        //checkinf if we have pieces other than kings and pawns, to reduce zugzwang likelihood
+        uint64_t otherPiecesBB = board.pieceBB[colorIndex]&(~(board.pieceBB[pawnIndex]|board.pieceBB[kingIndex]));
+
+        if (otherPiecesBB){
+            Move m;
+            m = getNullMove();
+
+            board.applyMove(m);
+            int score = -negamax(board, depth - 1 - nullMoveR_, -beta, -beta + 1, ply +1);
+            board.unmakeMove();
+            if (score >= beta){
+                tt_.store(hash, beta, depth, NodeType::LowerBound, m);
+                return beta;
+            } 
+        }
+
+    }
+
+
+    
+
+    
     orderMoves(moves, ttBestFrom, ttBestTo);
-    // std:://cout << "ordered moves:" << moves.count << std::endl;
+    
     bool updatedAlpha = false;
-    // Move* bestMove  
+    
     for(int i=0; i<moves.count; i++){
         Move move = moves.moves[i];
         hashHistory_.push_back(board.hash);
@@ -269,33 +284,15 @@ int Search::negamax(Board& board, int depth, int alpha, int beta, int ply) {
 }
 
 
-    //  1. stand-pat = evaluate(board)
-    //  2. if stand-pat >= beta  → return beta      (cutoff)
-    //  3. if stand-pat > alpha  → alpha = stand-pat
-    //  4. generate captures only (MoveGenerator::generateCaptures)
-    //  5. order captures by MVV-LVA
-    //  6. for each capture:
-    //       applyMove; score = -quiesce(board, -beta, -alpha); unmakeMove
-    //       if score >= beta  → return beta
-    //       if score > alpha  → alpha = score
-    //  7. return alpha
 
     //  No TT probing in quiescence (complexity vs. benefit not worth it at this stage).
 int Search::quiesce(Board& board, int alpha, int beta) {
-    // TODO Phase 9: stand-pat, generate captures, recurse
     int standPat = evaluate(board);
     if (standPat >= beta) return beta;
     if (standPat > alpha) alpha = standPat;
 
     MoveList captures = MoveGenerator::generateLegalCaptures(board);
-    // test code
-    // for (Move m:captures.moves){
-    //     // std:://cout << "moveType:" << m.moveType << std::endl;
-    //     // std:://cout << "move to:" << m.to << std::endl;
-    //     // std:://cout << "move from:" << m.from << std::endl;
-    //     // std:://cout << "move piece:" << m.piece << std::endl;
-    // }
-    
+
     // end test code
     if(captures.count > 0){
         orderMoves(captures, -1, -1);
@@ -319,21 +316,9 @@ void Search::orderMoves(MoveList& moves, int ttBestFrom, int ttBestTo) const {
 }
 
 int Search::moveRankValue(const Move&m, int ttBestFrom, int ttBestTo) const{
-    // // std:://cout << "moveType:" << m.moveType << std::endl;
-    // // std:://cout << "move to:" << m.to << std::endl;
-    // // std:://cout << "move from:" << m.from << std::endl;
-    // // std:://cout << "move piece:" << m.piece << std::endl;
-    // // std:://cout << "move rank value calc" << std::endl;
-    //cout << "Ranking " << endl;
     int value = hashMove(m, ttBestFrom, ttBestTo)*100000;
-    // std:://cout << "hash value calced" << std::endl;
-    //cout << "value: " << value << endl;
     value += mvvLva(m);
-    //cout << "value: " << value << endl;
-    // std:://cout << "mvvLva calced" << std::endl;
-    
     value += moveTypeMap.at(m.moveType); //values declared in Search.h
-    //cout << "value: " << value << endl;
     return value;
 }
 
