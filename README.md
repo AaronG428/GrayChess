@@ -1,3 +1,3 @@
 # GrayChess
 
-Chess engine in progress. 
+Chess engine for C++ and data science experimentation for personal use.
